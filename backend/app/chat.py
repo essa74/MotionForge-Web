@@ -1,4 +1,5 @@
 from typing import Literal
+import asyncio
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -8,6 +9,7 @@ from app.auth import _authenticated_user_id
 from app.config import settings
 
 router = APIRouter(prefix="/chat", tags=["AI chat"])
+FALLBACK_MODEL = "gemini-3.5-flash-lite"
 
 
 class ChatTurn(BaseModel):
@@ -54,34 +56,62 @@ async def chat_reply(
         "contents": contents,
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1800},
     }
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{settings.gemini_model}:generateContent"
-    )
+
+    # Retry temporary capacity errors, then try a lighter model as a fallback.
+    models = [settings.gemini_model]
+    if FALLBACK_MODEL not in models:
+        models.append(FALLBACK_MODEL)
+
+    last_detail = "خدمة Gemini مشغولة حالياً. حاول مرة أخرى بعد قليل."
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                url,
-                params={"key": settings.gemini_api_key},
-                json=body,
-            )
-        if response.status_code >= 400:
-            detail = "تعذر على Gemini معالجة الطلب حالياً."
-            try:
-                detail = response.json().get("error", {}).get("message", detail)
-            except ValueError:
-                pass
-            raise HTTPException(status_code=502, detail=detail[:500])
-        data = response.json()
-        answer = "".join(
-            part.get("text", "")
-            for candidate in data.get("candidates", [])
-            for part in candidate.get("content", {}).get("parts", [])
-            if part.get("text")
-        ).strip()
-        if not answer:
-            raise HTTPException(status_code=502, detail="وصل رد فارغ من نموذج الذكاء الاصطناعي.")
-        return {"reply": answer, "model": settings.gemini_model}
+        async with httpx.AsyncClient(timeout=35.0) as client:
+            for model_index, model in enumerate(models):
+                for attempt in range(2):
+                    url = (
+                        "https://generativelanguage.googleapis.com/v1beta/models/"
+                        f"{model}:generateContent"
+                    )
+                    response = await client.post(
+                        url,
+                        params={"key": settings.gemini_api_key},
+                        json=body,
+                    )
+                    if response.status_code == 503:
+                        last_detail = "نموذج Gemini عليه ضغط مؤقت حالياً."
+                        if attempt == 0:
+                            await asyncio.sleep(1.5)
+                            continue
+                        break
+                    if response.status_code >= 400:
+                        detail = "تعذر على Gemini معالجة الطلب حالياً."
+                        try:
+                            detail = response.json().get("error", {}).get("message", detail)
+                        except ValueError:
+                            pass
+                        # A model-specific availability/access error can move to fallback.
+                        if model_index == 0 and response.status_code in (404, 429):
+                            last_detail = detail[:500]
+                            break
+                        raise HTTPException(status_code=502, detail=detail[:500])
+
+                    data = response.json()
+                    answer = "".join(
+                        part.get("text", "")
+                        for candidate in data.get("candidates", [])
+                        for part in candidate.get("content", {}).get("parts", [])
+                        if part.get("text")
+                    ).strip()
+                    if not answer:
+                        raise HTTPException(status_code=502, detail="وصل رد فارغ من نموذج الذكاء الاصطناعي.")
+                    return {"reply": answer, "model": model}
+
+                # If the primary model is unavailable, continue with the fallback.
+                continue
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"{last_detail} حاول مرة أخرى بعد دقيقة.",
+        )
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="Gemini استغرق وقتاً أطول من المتوقع. حاول مرة أخرى.") from None
     except httpx.HTTPError:

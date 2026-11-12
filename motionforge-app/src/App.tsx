@@ -16,10 +16,29 @@ export default function App() {
   const [assets, setAssets] = useState<Array<ProjectAsset & { url: string }>>([])
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
+  const [storageStatus, setStorageStatus] = useState('جارٍ فحص حماية التخزين...')
   const picker = useRef<HTMLInputElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
 
   useEffect(() => { setProjects(getAllProjects()) }, [])
+  useEffect(() => {
+    let active = true
+    async function protectStorage() {
+      try {
+        if (!navigator.storage?.persist) {
+          if (active) setStorageStatus('الحفظ محلي؛ المتصفح لا يدعم طلب الحماية')
+          return
+        }
+        const alreadyProtected = await navigator.storage.persisted()
+        const protectedNow = alreadyProtected || await navigator.storage.persist()
+        if (active) setStorageStatus(protectedNow ? 'التخزين محمي من الحذف التلقائي' : 'الحفظ محلي؛ لم يمنح المتصفح حماية إضافية')
+      } catch {
+        if (active) setStorageStatus('الحفظ محلي؛ تعذر تأكيد حماية التخزين')
+      }
+    }
+    void protectStorage()
+    return () => { active = false }
+  }, [])
   useEffect(() => {
     if (!project) { setMessages([]); setAssets([]); return }
     try { setMessages(JSON.parse(localStorage.getItem(chatKey(project.id)) || '[]')) }
@@ -82,6 +101,7 @@ export default function App() {
       <div className="chat-brand"><span className="chat-logo">M</span><div><b>MotionForge</b><small>استوديو إنتاج الفيديو</small></div></div>
       <button className="chat-new" onClick={newChat}>＋ محادثة جديدة</button>
     </header>
+    <div className="storage-status" role="status">🔒 {storageStatus}</div>
     <div className="chat-layout">
       <section className="chat-main">
         {!project && messages.length === 0 ? <div className="chat-welcome">

@@ -48,25 +48,22 @@ const categories: { value: ProjectCategory; label: string }[] = [
 
                                                 useEffect(() => {
                                                   let cancelled = false
-                                                  if (!activeProject?.id || !activeAssetIds) {
-                                                    setLoadedAssets([])
-                                                    return
-                                                  }
+                                                  let objectUrls: string[] = []
+                                                  setLoadedAssets([])
+                                                  if (!activeProject?.id || !activeAssetIds) return
                                                   getProjectFiles(activeProject.id).then((files) => {
                                                     if (cancelled) {
                                                       files.forEach((file) => URL.revokeObjectURL(file.url))
                                                       return
                                                     }
+                                                    objectUrls = files.map((file) => file.url)
                                                     setLoadedAssets(files)
                                                   }).catch((error) => {
                                                     if (!cancelled) setMessage(error instanceof Error ? error.message : 'تعذر تحميل ملفات المشروع')
                                                   })
                                                   return () => {
                                                     cancelled = true
-                                                    setLoadedAssets((current) => {
-                                                      current.forEach((file) => URL.revokeObjectURL(file.url))
-                                                      return []
-                                                    })
+                                                    objectUrls.forEach((url) => URL.revokeObjectURL(url))
                                                   }
                                                 }, [activeProject?.id, activeAssetIds])
 

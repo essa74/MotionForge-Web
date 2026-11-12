@@ -787,3 +787,5 @@
 .project-choice small{color:#92869f}.project-choice.active{background:#281a38;border-color:#68449a}.chat-sidebar p,.chat-footer{font-size:11px;color:#8f849c;line-height:1.8}.chat-notice{padding:10px;color:#ffbdc5}
 .chat-footer{text-align:center;padding:20px 0}
 @media(max-width:700px){.chat-layout{grid-template-columns:1fr}.chat-sidebar{position:static;order:2}.chat-main{min-height:calc(100vh - 120px)}.chat-sidebar{display:none}.chat-top{height:60px}.bubble{max-width:96%}.composer-actions span{display:none}.chat-welcome{min-height:300px}}
+
+.storage-status{margin:10px 0 0;padding:8px 12px;border:1px solid #3b3150;border-radius:11px;background:#171320;color:#c7b5df;font-size:11px;text-align:center}

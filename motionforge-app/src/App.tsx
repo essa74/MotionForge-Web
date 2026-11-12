@@ -5,6 +5,8 @@ import { createProject, getAllProjects, updateProject } from './engine/projectSt
 import { saveProjectFiles, getProjectFiles } from './engine/assetStore'
 
 type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string; files?: string[]; at: string }
+type AuthUser = { email: string; display_name?: string | null; avatar_url?: string | null }
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://essa-studio-ai-api.onrender.com'
 const chatKey = (id: string) => `motionforge_chat_${id}`
 
 export default function App() {
@@ -17,10 +19,49 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState('')
   const [storageStatus, setStorageStatus] = useState('جارٍ فحص حماية التخزين...')
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
   const picker = useRef<HTMLInputElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
 
   useEffect(() => { setProjects(getAllProjects()) }, [])
+  useEffect(() => {
+    let active = true
+    const params = new URLSearchParams(window.location.search)
+    const authResult = params.get('auth')
+    if (authResult === 'success') setNotice('تم تسجيل الدخول بنجاح إلى Google.')
+    if (authResult === 'error') setNotice('تعذر تسجيل الدخول إلى Google. حاول مرة أخرى.')
+    if (authResult) {
+      params.delete('auth')
+      const query = params.toString()
+      window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : '') + window.location.hash)
+    }
+    fetch(`${API_BASE_URL}/api/v1/auth/me`, { credentials: 'include' })
+      .then(async response => {
+        if (!response.ok) return null
+        return await response.json() as AuthUser
+      })
+      .then(user => { if (active) setAuthUser(user) })
+      .catch(() => { if (active) setAuthUser(null) })
+      .finally(() => { if (active) setAuthLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  function startGoogleLogin() {
+    window.location.assign(`${API_BASE_URL}/api/v1/auth/google`)
+  }
+
+  async function logout() {
+    try {
+      await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } finally {
+      setAuthUser(null)
+      setNotice('تم تسجيل الخروج.')
+    }
+  }
   useEffect(() => {
     let active = true
     async function protectStorage() {
@@ -99,7 +140,15 @@ export default function App() {
   return <main className="chat-app" dir="rtl">
     <header className="chat-top">
       <div className="chat-brand"><span className="chat-logo">M</span><div><b>MotionForge</b><small>استوديو إنتاج الفيديو</small></div></div>
-      <button className="chat-new" onClick={newChat}>＋ محادثة جديدة</button>
+      <div className="chat-header-actions">
+        {authUser ? <>
+          <span className="auth-user-label" title={authUser.email}>{authUser.display_name || authUser.email}</span>
+          <button className="chat-new" onClick={() => void logout()}>تسجيل الخروج</button>
+        </> : <button className="chat-new" onClick={startGoogleLogin} disabled={authLoading}>
+          {authLoading ? 'جارٍ التحقق...' : 'الدخول باستخدام Google'}
+        </button>}
+        <button className="chat-new" onClick={newChat}>＋ محادثة جديدة</button>
+      </div>
     </header>
     <div className="storage-status" role="status">🔒 {storageStatus}</div>
     <div className="chat-layout">

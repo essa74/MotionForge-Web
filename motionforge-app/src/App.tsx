@@ -138,14 +138,23 @@ export default function App() {
         .slice(-20)
         .map(message => ({ role: message.role, content: message.text || (message.files?.length ? `أرفقت الملفات التالية: ${message.files.join('، ')}` : '') }))
         .filter(message => message.content.trim())
-      const aiResponse = await fetch(`${API_BASE_URL}/api/v1/chat/reply`, {
+      const controller = new AbortController()
+      const requestTimeout = window.setTimeout(() => controller.abort(), 90000)
+      let aiResponse: Response
+      try {
+        aiResponse = await fetch(`${API_BASE_URL}/api/v1/chat/reply`, {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${savedToken}`,
         },
         body: JSON.stringify({ messages: history }),
-      })
+        })
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') throw new Error('الرد اتأخر أكثر من 90 ثانية. جرّب إرسال الرسالة مرة أخرى.')
+        throw new Error('حصلت مشكلة في الاتصال بالخادم. تأكد من الإنترنت وحاول مرة أخرى.')
+      } finally { window.clearTimeout(requestTimeout) }
       const aiData = await aiResponse.json().catch(() => ({}))
       if (!aiResponse.ok) throw new Error(aiData.detail || 'تعذر الحصول على رد من المساعد.')
       const reply: ChatMessage = {
@@ -186,16 +195,16 @@ export default function App() {
             <button onClick={() => setDraft('عايز أجهز فيديو من ملفات وصور عندي')}>🖼️ العمل على ملفات وصور</button>
           </div>
         </div> : <div className="chat-thread">
-          <div className="thread-title"><b>{project?.name}</b><span>محادثة المشروع</span></div>
           {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>
             <small>{m.role === 'user' ? 'أنت' : 'EssaStudio AI'}</small>
             {m.text && <p>{m.text}</p>}
             {m.files?.length ? <div className="bubble-files">📎 {m.files.join('، ')}</div> : null}
           </article>)}
+          {busy && <article className="bubble assistant-bubble typing-bubble"><small>EssaStudio AI</small><p>بفكر في طلبك وبجهز الرد... <span className="typing-dots">•••</span></p></article>}
+          {notice && <div className="chat-notice">{notice}</div>}
           {assets.length > 0 && <div className="asset-strip">{assets.map(a => <span key={a.id}>📎 {a.name}</span>)}</div>}
           <div ref={bottom} />
         </div>}
-        {notice && <div className="chat-notice">{notice}</div>}
         <div className="composer-wrap">
         <div className="composer">
           {files.length > 0 && <div className="pending-files">{files.map((f, i) => <span key={i}>📎 {f.name} <button onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button></span>)}</div>}

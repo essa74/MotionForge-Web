@@ -863,3 +863,91 @@
   .chat-brand{margin-inline-start:auto}
   .chat-header-actions{flex:0 1 auto}
 }
+
+
+/* Full-screen chat workspace: ChatGPT / Claude-inspired layout */
+html,body,#root{width:100%;min-height:100%;margin:0}
+body{background:#212121!important;color:#ececec}
+.chat-app{width:100%;height:100dvh;min-height:100dvh;margin:0;padding:0;display:flex;flex-direction:column;overflow:hidden;background:#212121;color:#ececec}
+.chat-top{height:58px;min-height:58px;flex:0 0 58px;padding:0 18px;border-bottom:1px solid #343434;background:#212121;gap:14px}
+.chat-brand{margin-inline-start:0!important;gap:9px}
+.chat-logo{width:32px;height:32px;border-radius:9px;background:#7043a5;font-size:17px}
+.chat-brand b{font-size:14px;color:#f2f2f2}
+.chat-brand small{display:none}
+.chat-header-actions{gap:8px}
+.chat-header-actions .chat-new{padding:7px 11px;border:1px solid #48404f;border-radius:9px;background:#2b2730;color:#e9dff4;font-size:12px}
+.chat-layout{flex:1;min-height:0;padding:0!important;gap:0!important;display:flex;flex-direction:row;overflow:hidden}
+.chat-main{position:relative;flex:1;min-width:0;min-height:0;height:100%;display:flex;flex-direction:column;align-items:stretch;overflow:hidden;background:#212121}
+.chat-welcome{flex:1;min-height:0;width:min(100%,800px);margin:0 auto;padding:28px 28px 150px;justify-content:center;gap:8px}
+.welcome-mark{width:46px;height:46px;display:grid;place-items:center;border-radius:15px;background:#7043a5;color:white;font-size:23px;font-weight:900;margin-bottom:8px}
+.chat-welcome h1{margin:8px 0;font-size:clamp(24px,3vw,34px);font-weight:600;color:#f2f2f2}
+.chat-welcome p{max-width:520px;margin:0;color:#aaa;font-size:15px;line-height:1.8}
+.welcome-suggestions{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin-top:22px}
+.welcome-suggestions button{padding:9px 13px;border:1px solid #484848;border-radius:20px;background:#292929;color:#ddd;font-size:12px}
+.welcome-suggestions button:active{background:#393939}
+.chat-thread{width:min(100%,800px);flex:1;min-height:0;margin:0 auto;padding:22px 28px 160px;overflow-y:auto;gap:22px}
+.thread-title{padding:0 0 14px;border-bottom:1px solid #393939;color:#ddd}
+.thread-title span{color:#999}
+.bubble{max-width:85%;padding:13px 17px;border:0;border-radius:18px;line-height:1.85;font-size:14px}
+.bubble small{font-size:11px;color:#c7a8e8}
+.user-bubble{align-self:flex-start;background:#303030;color:#f1f1f1}
+.assistant-bubble{align-self:stretch;max-width:100%;padding:4px 2px;background:transparent;color:#e8e8e8}
+.bubble p{margin:6px 0}
+.composer-wrap{position:absolute;z-index:5;bottom:0;left:0;right:0;display:flex;flex-direction:column;align-items:center;padding:14px 22px 10px;background:linear-gradient(180deg,transparent,#212121 22%)}
+.composer{position:relative;bottom:auto;width:min(100%,800px);padding:12px 14px;border:1px solid #555;border-radius:24px;background:#303030;box-shadow:0 4px 22px #0003}
+.composer:focus-within{border-color:#777}
+.composer textarea{min-height:66px;max-height:220px;padding:8px 6px;color:#f4f4f4;font-size:15px}
+.composer textarea::placeholder{color:#999}
+.composer-actions{gap:8px}
+.composer-actions span{color:#999}
+.attach-button{padding:8px 11px;border:1px solid #555;border-radius:18px;background:transparent;color:#ddd;font-size:12px}
+.send-button{padding:9px 15px;border-radius:20px;background:#ececec;color:#222;font-size:13px}
+.send-button:disabled{background:#555;color:#aaa;opacity:1}
+.composer-disclaimer{width:min(100%,800px);padding-top:7px;text-align:center;color:#858585;font-size:10px}
+.chat-notice{width:min(100%,800px);margin:0 auto;padding:8px 20px;color:#f0b7bd;text-align:center;font-size:12px}
+.chat-sidebar{order:-1;flex:0 0 275px;width:275px;height:100%;max-height:none;min-height:0;position:relative;top:auto;border:0;border-left:1px solid #343434;border-radius:0;padding:15px 12px;background:#171717;box-shadow:none}
+.sidebar-heading{padding:3px 5px 14px;color:#eee}
+.sidebar-heading button{display:none}
+.sidebar-new-chat{border:1px solid #444;border-radius:10px;background:#242424;color:#eee;text-align:right;font-size:13px}
+.history-search{margin:12px 0 18px;border:1px solid #393939;border-radius:9px;background:#202020}
+.history-search input{color:#eee}
+.history-label{color:#999}
+.chat-sidebar .project-choice{padding:10px 9px;border:0;border-radius:9px;color:#ddd}
+.chat-sidebar .project-choice:hover,.chat-sidebar .project-choice.active{background:#292929;border:0}
+.history-chat-icon{color:#aaa}
+.history-chat-copy b{font-size:12px;color:#ddd}
+.history-chat-copy small{color:#888}
+.history-empty{color:#888}
+.sidebar-bottom{border-top:1px solid #343434}
+.sidebar-account{color:#ccc}
+.sidebar-bottom button{color:#d3b6ee}
+.sidebar-toggle{border:0;background:transparent;color:#ddd}
+.chat-footer,.storage-status{display:none!important}
+.sidebar-backdrop{display:none}
+@media(max-width:700px){
+  .chat-top{height:54px;min-height:54px;flex-basis:54px;padding:0 10px;gap:8px}
+  .chat-brand{gap:7px}
+  .chat-brand b{font-size:13px}
+  .chat-header-actions .chat-new{font-size:10px;padding:6px 8px}
+  .auth-user-label{max-width:70px;font-size:9px}
+  .chat-layout{display:block}
+  .chat-main{height:100%;width:100%}
+  .chat-sidebar{display:flex;position:fixed;z-index:60;top:0;right:0;bottom:0;width:min(84vw,310px);height:100dvh;max-height:none;min-height:0;transform:translateX(105%);transition:transform .22s ease;border:0;border-left:1px solid #444;border-radius:0;background:#171717;box-shadow:-18px 0 55px #0009}
+  .chat-sidebar.sidebar-open{transform:translateX(0)}
+  .sidebar-heading button{display:block}
+  .sidebar-backdrop{display:block;position:fixed;inset:0;z-index:55;border:0;background:#0009}
+  .chat-welcome{width:100%;padding:25px 18px 150px;min-height:0}
+  .chat-welcome h1{font-size:25px}
+  .chat-welcome p{font-size:13px}
+  .welcome-suggestions{gap:7px;margin-top:16px}
+  .welcome-suggestions button{font-size:10px;padding:8px 10px}
+  .chat-thread{width:100%;padding:15px 14px 155px}
+  .bubble{max-width:94%;font-size:13px}
+  .composer-wrap{padding:8px 10px 5px}
+  .composer{padding:9px 10px;border-radius:20px}
+  .composer textarea{min-height:56px;font-size:14px}
+  .composer-actions span{display:none}
+  .attach-button{font-size:10px;padding:7px 9px}
+  .send-button{font-size:11px;padding:8px 12px}
+  .composer-disclaimer{font-size:9px}
+}

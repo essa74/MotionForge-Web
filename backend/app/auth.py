@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
-from cryptography.fernet import Fernet, InvalidToken
+from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select

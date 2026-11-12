@@ -64,18 +64,24 @@ async def chat_reply(
 
     last_detail = "خدمة Gemini مشغولة حالياً. حاول مرة أخرى بعد قليل."
     try:
-        async with httpx.AsyncClient(timeout=35.0) as client:
+        async with httpx.AsyncClient(timeout=12.0) as client:
             for model_index, model in enumerate(models):
                 for attempt in range(2):
                     url = (
                         "https://generativelanguage.googleapis.com/v1beta/models/"
                         f"{model}:generateContent"
                     )
-                    response = await client.post(
-                        url,
-                        params={"key": settings.gemini_api_key},
-                        json=body,
-                    )
+                    try:
+                        response = await client.post(
+                            url,
+                            params={"key": settings.gemini_api_key},
+                            json=body,
+                        )
+                    except httpx.TimeoutException:
+                        last_detail = "النموذج استغرق وقتاً أطول من المهلة المحددة."
+                        if attempt == 0:
+                            continue
+                        break
                     if response.status_code == 503:
                         last_detail = "نموذج Gemini عليه ضغط مؤقت حالياً."
                         if attempt == 0:

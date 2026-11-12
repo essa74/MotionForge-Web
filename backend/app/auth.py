@@ -85,7 +85,7 @@ async def google_login(request: Request):
         request,
         redirect_uri,
         access_type="offline",
-        prompt="consent",
+        prompt="select_account",
         include_granted_scopes="true",
     )
 

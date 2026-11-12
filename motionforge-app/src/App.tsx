@@ -190,9 +190,13 @@ export default function App() {
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }} />
           <div className="composer-actions">
             <input ref={picker} type="file" multiple accept="audio/*,image/*,video/*,.pdf,.txt,.doc,.docx" hidden onChange={e => setFiles(old => [...old, ...Array.from(e.target.files || [])])} />
-            <button className="attach-button" onClick={() => picker.current?.click()}>＋ إرفاق ملفات</button>
-            <span>الصوت • الصور • الفيديو • المستندات</span>
-            <button className="send-button" onClick={() => void send()} disabled={busy || (!draft.trim() && files.length === 0)}>{busy ? 'جارٍ الحفظ...' : 'إرسال ↑'}</button>
+            <div className="composer-tools">
+              <button className="attach-button" onClick={() => picker.current?.click()} aria-label="إرفاق ملفات" title="إرفاق ملفات">＋</button>
+              <span className="attachment-types">الصور · الفيديو · الصوت · المستندات</span>
+            </div>
+            <button className="send-button" onClick={() => void send()} disabled={busy || (!draft.trim() && files.length === 0)} aria-label={busy ? 'جارٍ الإرسال' : 'إرسال'} title="إرسال">
+              {busy ? <span className="send-loading">…</span> : <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>}
+            </button>
           </div>
         </div>
         <div className="composer-disclaimer">EssaStudio AI قد يخطئ. راجع النتائج قبل استخدامها.</div>

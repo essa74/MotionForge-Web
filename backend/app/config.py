@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     session_secret: str = ""
     token_encryption_key: str = ""
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

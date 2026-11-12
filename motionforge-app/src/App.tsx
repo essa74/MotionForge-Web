@@ -132,11 +132,25 @@ export default function App() {
       localStorage.setItem(chatKey(current.id), JSON.stringify(next))
       setDraft(''); setFiles([])
       if (picker.current) picker.current.value = ''
+      const savedToken = localStorage.getItem('essa_studio_access_token')
+      if (!savedToken) throw new Error('انتهت جلسة الدخول. سجّل الدخول مرة أخرى.')
+      const history = [...(project ? messages : []), userMessage]
+        .slice(-20)
+        .map(message => ({ role: message.role, content: message.text || (message.files?.length ? `أرفقت الملفات التالية: ${message.files.join('، ')}` : '') }))
+        .filter(message => message.content.trim())
+      const aiResponse = await fetch(`${API_BASE_URL}/api/v1/chat/reply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${savedToken}`,
+        },
+        body: JSON.stringify({ messages: history }),
+      })
+      const aiData = await aiResponse.json().catch(() => ({}))
+      if (!aiResponse.ok) throw new Error(aiData.detail || 'تعذر الحصول على رد من المساعد.')
       const reply: ChatMessage = {
         id: crypto.randomUUID(), role: 'assistant',
-        text: saved.length
-          ? `وصلت تعليماتك واتحفظت ${saved.length} ملفات مع المشروع. المحادثة دي هتفضل مرتبطة بنفس المشروع. ملحوظة مهمة: محرك تنفيذ أوامر التعديل وتوليد ملف الفيديو النهائي لسه مش موصول؛ مش هادّعي إن الفيديو اتنتج قبل ما نضيف المحرك فعليًا.`
-          : 'وصلت رسالتك واتحفظت في محادثة المشروع. تقدر تكمل تعليماتك هنا؛ تنفيذ التعديلات وإنتاج الفيديو هيحتاج توصيل محرك الإنتاج الفعلي.',
+        text: aiData.reply,
         at: new Date().toISOString()
       }
       const completed = [...next, reply]

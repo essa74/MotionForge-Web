@@ -158,7 +158,7 @@ export default function App() {
   return <main className="chat-app" dir="rtl">
     <header className="chat-top">
       <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
-      <div className="chat-brand"><span className="chat-logo">M</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
+      <div className="chat-brand"><span className="chat-logo">E</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
       <div className="chat-header-actions">
         {authUser ? <>
           <div className="auth-user-chip">
@@ -174,23 +174,17 @@ export default function App() {
         <button className="chat-new" onClick={newChat}>＋ محادثة جديدة</button>
       </div>
     </header>
-    <div className="storage-status" role="status">🔒 {storageStatus}</div>
     <div className="chat-layout">
       <section className="chat-main">
         {!project && messages.length === 0 ? <div className="chat-welcome">
-          {authUser && <div className="welcome-user">
-            {authUser.avatar_url
-              ? <img className="welcome-user-avatar" src={authUser.avatar_url} alt="" referrerPolicy="no-referrer" />
-              : <span className="welcome-user-avatar welcome-user-avatar-fallback">{(authUser.display_name || authUser.email).trim().charAt(0).toUpperCase()}</span>}
-            <div>
-              <h2>أهلاً بيك، {authUser.display_name || authUser.email.split('@')[0]} 👋</h2>
-              <p>نورت EssaStudio AI. جاهز نحول أفكارك لفيديوهات؟</p>
-            </div>
-          </div>}
-          <span className="chat-kicker">فكرتك تتحول إلى فيديو</span>
-          <h1>خلّينا ننتج الفيديو</h1>
-          <p>اكتب فكرتك، وأرفق البرومبت والسكريبت والصوت والصور واللوجو. كل الشغل هيكون في نفس المحادثة.</p>
-          <div className="chat-hint">ابدأ برسالة واحدة، وبعدها اطلب أي تعديل في نفس الشات.</div>
+          <div className="welcome-mark">E</div>
+          <h1>{authUser ? `أهلاً بيك، ${authUser.display_name || authUser.email.split('@')[0]}` : 'إيه اللي حابب نشتغل عليه؟'}</h1>
+          <p>اكتب فكرتك، أو ارفع ملفاتك، وهنشتغل عليها مع بعض خطوة بخطوة.</p>
+          <div className="welcome-suggestions">
+            <button onClick={() => setDraft('عايز أعمل فيديو قصير من فكرة جديدة')}>🎬 إنشاء فيديو من فكرة</button>
+            <button onClick={() => setDraft('عايز أكتب سيناريو وبرومبت لفيديو')}>✍️ كتابة سيناريو وبرومبت</button>
+            <button onClick={() => setDraft('عايز أجهز فيديو من ملفات وصور عندي')}>🖼️ العمل على ملفات وصور</button>
+          </div>
         </div> : <div className="chat-thread">
           <div className="thread-title"><b>{project?.name}</b><span>محادثة المشروع</span></div>
           {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>
@@ -202,6 +196,7 @@ export default function App() {
           <div ref={bottom} />
         </div>}
         {notice && <div className="chat-notice">{notice}</div>}
+        <div className="composer-wrap">
         <div className="composer">
           {files.length > 0 && <div className="pending-files">{files.map((f, i) => <span key={i}>📎 {f.name} <button onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button></span>)}</div>}
           <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={3}
@@ -213,6 +208,8 @@ export default function App() {
             <span>الصوت • الصور • الفيديو • المستندات</span>
             <button className="send-button" onClick={() => void send()} disabled={busy || (!draft.trim() && files.length === 0)}>{busy ? 'جارٍ الحفظ...' : 'إرسال ↑'}</button>
           </div>
+        </div>
+        <div className="composer-disclaimer">EssaStudio AI قد يخطئ. راجع النتائج قبل استخدامها.</div>
         </div>
       </section>
       <aside className={`chat-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
@@ -235,6 +232,6 @@ export default function App() {
       </aside>
       {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة" />}
     </div>
-    <footer className="chat-footer">EssaStudio AI • مساحة إنتاج واحدة لكل فيديو</footer>
+
   </main>
 }

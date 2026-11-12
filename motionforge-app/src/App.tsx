@@ -21,6 +21,8 @@ export default function App() {
   const [storageStatus, setStorageStatus] = useState('جارٍ فحص حماية التخزين...')
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [historySearch, setHistorySearch] = useState('')
   const picker = useRef<HTMLInputElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
 
@@ -116,6 +118,7 @@ export default function App() {
         if (!text) throw new Error('اكتب فكرة الفيديو أولاً.')
         current = createProject({ name: text.slice(0, 48), idea: text, script: '', category: 'auto', format: 'vertical' })
         setProject(current)
+        setProjects(getAllProjects())
       }
       const saved = await saveProjectFiles(current.id, files.map(file => ({
         file,
@@ -138,17 +141,23 @@ export default function App() {
       }
       const completed = [...next, reply]
       setMessages(completed); localStorage.setItem(chatKey(current.id), JSON.stringify(completed))
+      const touched = updateProject(current.id, { updatedAt: new Date().toISOString() })
+      if (touched) setProjects(getAllProjects())
       const fresh = await getProjectFiles(current.id); setAssets(fresh)
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'حصل خطأ أثناء حفظ الرسالة.')
     } finally { setBusy(false) }
   }
 
-  function openProject(item: VideoProject) { setProject(item); setNotice('') }
-  function newChat() { setProject(null); setMessages([]); setAssets([]); setDraft(''); setFiles([]); setNotice('') }
+  function openProject(item: VideoProject) { setProject(item); setNotice(''); setSidebarOpen(false) }
+  function newChat() { setProject(null); setMessages([]); setAssets([]); setDraft(''); setFiles([]); setNotice(''); setSidebarOpen(false) }
+  const visibleProjects = [...projects]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .filter(item => item.name.toLocaleLowerCase('ar').includes(historySearch.trim().toLocaleLowerCase('ar')))
 
   return <main className="chat-app" dir="rtl">
     <header className="chat-top">
+      <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
       <div className="chat-brand"><span className="chat-logo">M</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
       <div className="chat-header-actions">
         {authUser ? <>
@@ -206,14 +215,25 @@ export default function App() {
           </div>
         </div>
       </section>
-      <aside className="chat-sidebar">
-        <b>محادثاتك</b>
-        <button className={!project ? 'project-choice active' : 'project-choice'} onClick={newChat}>＋ ابدأ محادثة جديدة</button>
-        {projects.map(p => <button key={p.id} className={project?.id === p.id ? 'project-choice active' : 'project-choice'} onClick={() => openProject(p)}>
-          <b>{p.name}</b><small>{new Date(p.updatedAt).toLocaleDateString('ar-EG')}</small>
-        </button>)}
-        <p>كل مشروع له محادثته وملفاته المحفوظة.</p>
+      <aside className={`chat-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
+        <div className="sidebar-heading"><b>مساحة العمل</b><button onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة">×</button></div>
+        <button className="sidebar-new-chat" onClick={newChat}>＋ محادثة جديدة</button>
+        <label className="history-search">
+          <span>⌕</span>
+          <input value={historySearch} onChange={event => setHistorySearch(event.target.value)} placeholder="ابحث في المحادثات" />
+        </label>
+        <div className="history-label">الأخيرة</div>
+        <div className="history-list">
+          {visibleProjects.length ? visibleProjects.map(p => <button key={p.id} className={`project-choice ${project?.id === p.id ? 'active' : ''}`} onClick={() => openProject(p)}>
+            <span className="history-chat-icon">◷</span>
+            <span className="history-chat-copy"><b>{p.name}</b><small>{new Date(p.updatedAt).toLocaleDateString('ar-EG')}</small></span>
+          </button>) : <p className="history-empty">{historySearch ? 'لا توجد محادثات مطابقة.' : 'محادثاتك الجديدة هتظهر هنا.'}</p>}
+        </div>
+        <div className="sidebar-bottom">
+          {authUser ? <><span className="sidebar-account">{authUser.display_name || authUser.email}</span><button onClick={() => void logout()}>تسجيل الخروج</button></> : <button onClick={startGoogleLogin}>تسجيل الدخول</button>}
+        </div>
       </aside>
+      {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة" />}
     </div>
     <footer className="chat-footer">EssaStudio AI • مساحة إنتاج واحدة لكل فيديو</footer>
   </main>

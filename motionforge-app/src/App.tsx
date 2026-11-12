@@ -1,8 +1,56 @@
-import { useEffect, useRef, useState } from 'react'
+import { createElement, useEffect, useRef, useState } from 'react'
 import './App.css'
 import type { ProjectAsset, VideoProject } from './engine/projectTypes'
 import { createProject, getAllProjects, updateProject } from './engine/projectStore'
 import { saveProjectFiles, getProjectFiles } from './engine/assetStore'
+
+
+function renderMarkdown(source: string) {
+  const escapeHtml = (value: string) => value
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+  const inline = (value: string) => escapeHtml(value)
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/__(.+?)__/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+  const lines = source.replace(/\r/g, '').split('\n')
+  const blocks: string[] = []
+  let paragraph: string[] = []
+  let list: 'ul' | 'ol' | null = null
+  let code: string[] | null = null
+  const flushParagraph = () => {
+    if (paragraph.length) { blocks.push('<p>' + paragraph.map(inline).join('<br>') + '</p>'); paragraph = [] }
+  }
+  const closeList = () => { if (list) { blocks.push('</' + list + '>'); list = null } }
+  for (const line of lines) {
+    if (line.trim().startsWith('```')) {
+      flushParagraph(); closeList()
+      if (code) { blocks.push('<pre><code>' + escapeHtml(code.join('\n')) + '</code></pre>'); code = null }
+      else code = []
+      continue
+    }
+    if (code) { code.push(line); continue }
+    const heading = line.match(/^\s{0,3}(#{1,3})\s+(.+)$/)
+    const bullet = line.match(/^\s*[-*+]\s+(.+)$/)
+    const numbered = line.match(/^\s*\d+[.)]\s+(.+)$/)
+    if (heading) { flushParagraph(); closeList(); const level = Math.min(heading[1].length + 2, 5); blocks.push('<h' + level + '>' + inline(heading[2]) + '</h' + level + '>'); continue }
+    if (bullet || numbered) {
+      flushParagraph(); const kind = bullet ? 'ul' : 'ol'
+      if (list !== kind) { closeList(); list = kind; blocks.push('<' + list + '>') }
+      blocks.push('<li>' + inline((bullet || numbered)![1]) + '</li>'); continue
+    }
+    if (!line.trim()) { flushParagraph(); closeList(); continue }
+    paragraph.push(line)
+  }
+  if (code) blocks.push('<pre><code>' + escapeHtml(code.join('\n')) + '</code></pre>')
+  flushParagraph(); closeList()
+  return { __html: blocks.join('') }
+}
+
+function MarkdownMessage({ text }: { text: string }) {
+  return createElement('div', { className: 'markdown-content', dangerouslySetInnerHTML: renderMarkdown(text) })
+}
 
 type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string; files?: string[]; at: string }
 type AuthUser = { email: string; display_name?: string | null; avatar_url?: string | null }
@@ -197,7 +245,7 @@ export default function App() {
         </div> : <div className="chat-thread">
           {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>
             <small>{m.role === 'user' ? 'أنت' : 'EssaStudio AI'}</small>
-            {m.text && <p>{m.text}</p>}
+            {m.text && <MarkdownMessage text={m.text} />}
             {m.files?.length ? <div className="bubble-files">📎 {m.files.join('، ')}</div> : null}
           </article>)}
           {busy && <article className="bubble assistant-bubble typing-bubble"><small>EssaStudio AI</small><p>بفكر في طلبك وبجهز الرد... <span className="typing-dots">•••</span></p></article>}

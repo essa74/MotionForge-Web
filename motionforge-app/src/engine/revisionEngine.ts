@@ -107,6 +107,7 @@ import type {
 
                                                                                                                                                                                                                                 return updateProject(project.id, {
                                                                                                                                                                                                                                     scenes: cloneData(nextScenes),
+                                                                                                        totalDuration: nextScenes.reduce((sum, scene) => sum + scene.duration, 0),
                                                                                                                                                                                                                                         revisions: [
                                                                                                                                                                                                                                               ...(project.revisions ?? []),
                                                                                                                                                                                                                                                     revision,

@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from authlib.integrations.starlette_client import OAuth, OAuthError
+from authlib.integrations.base_client.errors import OAuthError
+from authlib.integrations.starlette_client import OAuth
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse

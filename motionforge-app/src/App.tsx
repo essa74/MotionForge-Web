@@ -46,6 +46,8 @@ const categories: { value: ProjectCategory; label: string }[] = [
                                                 const [loadedAssets, setLoadedAssets] = useState<Array<ProjectAsset & { url: string }>>([])
                                                 const [audioDuration, setAudioDuration] = useState(0)
                                                 const [audioCurrentTime, setAudioCurrentTime] = useState(0)
+const [chatDraft, setChatDraft] = useState('')
+const [chatMessages, setChatMessages] = useState<Array<{ id: string; role: 'user' | 'assistant'; text: string; createdAt: string }>>([])
                                                 const activeAssetIds = activeProject?.assets.map((asset) => asset.id).join('|') ?? ''
 
                                                 useEffect(() => {
@@ -189,6 +191,40 @@ async function addAudioFiles(files: FileList | null) {
   }
 }
 
+async function sendChatMessage() {
+  const text = chatDraft.trim();
+  if (!text || !activeProject) return;
+  const userMessage = { id: `${Date.now()}-user`, role: 'user' as const, text, createdAt: new Date().toISOString() };
+  setChatMessages((current) => [...current, userMessage]);
+  setChatDraft('');
+  const reply = {
+    id: `${Date.now()}-assistant`,
+    role: 'assistant' as const,
+    text: 'وصلت تعليماتك واتسجلت في المحادثة. واجهة المحادثة جاهزة الآن؛ لكن تنفيذ التعديلات تلقائياً بواسطة نموذج ذكاء اصطناعي وربطها بإنتاج الفيديو ما زال قيد التطوير، ولن أدّعي أن التعديل اتنفذ قبل ربط المحرك.',
+    createdAt: new Date().toISOString(),
+  };
+  setChatMessages((current) => [...current, reply]);
+}
+
+async function addChatAttachments(files: FileList | null) {
+  if (!activeProject || !files?.length) return;
+  const selected = Array.from(files).filter((file) => file.type.startsWith('audio/') || file.type.startsWith('image/') || file.type.startsWith('video/'));
+  if (!selected.length) { setMessage('اختار صوت أو صورة أو فيديو.'); return; }
+  try {
+    const saved = await saveProjectFiles(activeProject.id, selected.map((file) => ({
+      file,
+      type: file.type.startsWith('audio/') ? 'audio' as const : file.type.startsWith('video/') ? 'video' as const : 'image' as const,
+    })));
+    const updated = updateProject(activeProject.id, { assets: [...activeProject.assets, ...saved] });
+    if (!updated) throw new Error('تم رفع الملفات لكن تعذر تحديث المشروع.');
+    setActiveProject(updated);
+    setProjects(getAllProjects());
+    setMessage(`تم إرفاق وحفظ ${saved.length} ملف داخل المشروع.`);
+  } catch (error) {
+    setMessage(error instanceof Error ? error.message : 'تعذر إرفاق الملفات.');
+  }
+}
+
 function fitScenesToAudio() {
   if (!activeProject || audioDuration <= 0 || activeProject.scenes.length === 0) {
     setMessage('حمّل ملفًا صوتيًا أولًا لقراءة مدته.');
@@ -323,7 +359,22 @@ function addScene() {
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <button className="primary-button" onClick={saveCurrentProject}>حفظ المشروع وإنشاء نسخة</button>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       <button className="secondary-button add-scene" onClick={() => setShowHistory((value) => !value)}>{showHistory ? 'إخفاء سجل التعديلات' : `عرض سجل التعديلات (${history.length})`}</button>
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               {showHistory && <div className="scene-list">{history.length === 0 ? <p>لا توجد نسخ محفوظة حتى الآن.</p> : history.map((revision) => <article className="scene-card" key={revision.id}><strong>{revision.description}</strong><p>{new Date(revision.createdAt).toLocaleString('ar-EG')}</p><small>المشاهد المتأثرة: {revision.affectedSceneIds.length}</small><button className="secondary-button" onClick={() => restoreVersion(revision.id)}>استعادة الحالة السابقة</button></article>)}</div>}
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      {message && <div className="success-message">{message}</div>}
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      <div className="scene-card" style={{ marginTop: '24px' }}>
+  <div className="section-heading"><div><span className="step-label">02 — PROJECT CHAT</span><h2>محادثة المشروع</h2><p>اكتب تعليماتك الإضافية وأرفق ملفات جديدة في أي وقت.</p></div></div>
+  <div style={{ display: 'grid', gap: '10px', margin: '18px 0' }}>
+    {chatMessages.length === 0 && <p className="muted-text">لسه مفيش رسائل. اكتب أول تعديل أو توجيه للمشروع.</p>}
+    {chatMessages.map((item) => <div key={item.id} style={{ padding: '14px', borderRadius: '14px', background: item.role === 'user' ? 'rgba(150,85,230,.18)' : 'rgba(255,255,255,.045)', border: '1px solid rgba(180,130,230,.2)' }}>
+      <strong>{item.role === 'user' ? 'أنت' : 'MotionForge'}</strong>
+      <p style={{ whiteSpace: 'pre-wrap', margin: '8px 0 0' }}>{item.text}</p>
+    </div>)}
+  </div>
+  <textarea value={chatDraft} onChange={(event) => setChatDraft(event.target.value)} placeholder="مثلاً: خلّي المقدمة أسرع، واستخدم الصور المرفقة في المشهد الثاني..." rows={4} style={{ width: '100%', boxSizing: 'border-box' }} />
+  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+    <label className="secondary-button" style={{ cursor: 'pointer' }}>＋ إرفاق ملفات<input type="file" accept="audio/*,image/*,video/*" multiple hidden onChange={(event) => { void addChatAttachments(event.target.files); event.currentTarget.value = '' }} /></label>
+    <button className="primary-button" onClick={() => { void sendChatMessage() }} disabled={!chatDraft.trim()}>إرسال التعليمات ←</button>
+  </div>
+  <p className="button-note">ملاحظة: الرسائل حالياً واجهة وتجربة إدخال؛ تنفيذ الأوامر آلياً يحتاج ربط نموذج محلي أو محرك ذكاء اصطناعي، وهي الخطوة التالية.</p>
+</div>{message && <div className="success-message">{message}</div>}
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             </section>}
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   <footer className="footer"><div className="footer-brand">MotionForge <span>STUDIO</span></div><p>من الفكرة إلى الإنتاج — خطوة بخطوة.</p><small>Prototype • Local project drafts</small></footer>

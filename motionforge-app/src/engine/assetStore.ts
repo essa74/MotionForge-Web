@@ -103,3 +103,18 @@ export async function deleteProjectFiles(projectId: string): Promise<void> {
     db.close()
   }
 }
+
+export async function deleteProjectAsset(assetId: string): Promise<void> {
+  const db = await openDatabase()
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite')
+      transaction.objectStore(STORE_NAME).delete(assetId)
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('تعذر حذف الملف.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('تم إلغاء حذف الملف.'))
+    })
+  } finally {
+    db.close()
+  }
+}

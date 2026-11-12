@@ -7,7 +7,7 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client import OAuth
 from cryptography.fernet import Fernet
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -179,7 +179,7 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
 @router.get("/me", response_model=UserRead)
 async def current_user(
     request: Request,
-    authorization: str | None = None,
+    authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
     user_id = _authenticated_user_id(request, authorization)

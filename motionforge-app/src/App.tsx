@@ -142,7 +142,12 @@ export default function App() {
       <div className="chat-brand"><span className="chat-logo">M</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
       <div className="chat-header-actions">
         {authUser ? <>
-          <span className="auth-user-label" title={authUser.email}>{authUser.display_name || authUser.email}</span>
+          <div className="auth-user-chip">
+            {authUser.avatar_url
+              ? <img className="auth-user-avatar" src={authUser.avatar_url} alt="" referrerPolicy="no-referrer" />
+              : <span className="auth-user-avatar auth-user-avatar-fallback">{(authUser.display_name || authUser.email).trim().charAt(0).toUpperCase()}</span>}
+            <span className="auth-user-label" title={authUser.email}>{authUser.display_name || authUser.email}</span>
+          </div>
           <button className="chat-new" onClick={() => void logout()}>تسجيل الخروج</button>
         </> : <button className="chat-new" onClick={startGoogleLogin} disabled={authLoading}>
           {authLoading ? 'جارٍ التحقق...' : 'الدخول باستخدام Google'}
@@ -154,6 +159,15 @@ export default function App() {
     <div className="chat-layout">
       <section className="chat-main">
         {!project && messages.length === 0 ? <div className="chat-welcome">
+          {authUser && <div className="welcome-user">
+            {authUser.avatar_url
+              ? <img className="welcome-user-avatar" src={authUser.avatar_url} alt="" referrerPolicy="no-referrer" />
+              : <span className="welcome-user-avatar welcome-user-avatar-fallback">{(authUser.display_name || authUser.email).trim().charAt(0).toUpperCase()}</span>}
+            <div>
+              <h2>أهلاً بيك، {authUser.display_name || authUser.email.split('@')[0]} 👋</h2>
+              <p>نورت EssaStudio AI. جاهز نحول أفكارك لفيديوهات؟</p>
+            </div>
+          </div>}
           <span className="chat-kicker">فكرتك تتحول إلى فيديو</span>
           <h1>خلّينا ننتج الفيديو</h1>
           <p>اكتب فكرتك، وأرفق البرومبت والسكريبت والصوت والصور واللوجو. كل الشغل هيكون في نفس المحادثة.</p>

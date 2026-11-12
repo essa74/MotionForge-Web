@@ -32,7 +32,6 @@ export default function App() {
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
     const incomingToken = hashParams.get('access_token')
     if (incomingToken) localStorage.setItem('essa_studio_access_token', incomingToken)
-    if (authResult === 'success') setNotice('تم تسجيل الدخول بنجاح إلى Google.')
     if (authResult === 'error') setNotice('تعذر تسجيل الدخول إلى Google. حاول مرة أخرى.')
     if (authResult) params.delete('auth')
     if (authResult || incomingToken) {

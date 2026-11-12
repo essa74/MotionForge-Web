@@ -139,7 +139,7 @@ export default function App() {
 
   return <main className="chat-app" dir="rtl">
     <header className="chat-top">
-      <div className="chat-brand"><span className="chat-logo">M</span><div><b>MotionForge</b><small>استوديو إنتاج الفيديو</small></div></div>
+      <div className="chat-brand"><span className="chat-logo">M</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
       <div className="chat-header-actions">
         {authUser ? <>
           <span className="auth-user-label" title={authUser.email}>{authUser.display_name || authUser.email}</span>
@@ -161,7 +161,7 @@ export default function App() {
         </div> : <div className="chat-thread">
           <div className="thread-title"><b>{project?.name}</b><span>محادثة المشروع</span></div>
           {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>
-            <small>{m.role === 'user' ? 'أنت' : 'MotionForge'}</small>
+            <small>{m.role === 'user' ? 'أنت' : 'EssaStudio AI'}</small>
             {m.text && <p>{m.text}</p>}
             {m.files?.length ? <div className="bubble-files">📎 {m.files.join('، ')}</div> : null}
           </article>)}
@@ -191,6 +191,6 @@ export default function App() {
         <p>كل مشروع له محادثته وملفاته المحفوظة.</p>
       </aside>
     </div>
-    <footer className="chat-footer">MotionForge • مساحة إنتاج واحدة لكل فيديو</footer>
+    <footer className="chat-footer">EssaStudio AI • مساحة إنتاج واحدة لكل فيديو</footer>
   </main>
 }

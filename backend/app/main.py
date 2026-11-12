@@ -27,7 +27,7 @@ if settings.session_secret:
     app.add_middleware(
         SessionMiddleware,
         secret_key=settings.session_secret,
-        same_site="lax",
+        same_site="none" if settings.app_env == "production" else "lax",
         https_only=settings.app_env == "production",
         session_cookie="essastudio_session",
         max_age=60 * 60 * 24 * 14,

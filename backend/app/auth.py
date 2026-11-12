@@ -1,5 +1,8 @@
 from datetime import datetime, timezone
 from uuid import UUID
+from urllib.parse import quote
+
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client import OAuth
@@ -46,6 +49,22 @@ def _require_auth_configuration() -> None:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"Authentication is not configured. Missing: {', '.join(missing)}",
         )
+
+
+def _auth_serializer() -> URLSafeTimedSerializer:
+    return URLSafeTimedSerializer(settings.session_secret, salt="essa-studio-access-token")
+
+
+def _authenticated_user_id(request: Request, authorization: str | None = None) -> str | None:
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization[7:].strip()
+        try:
+            payload = _auth_serializer().loads(token, max_age=60 * 60 * 24 * 14)
+            user_id = payload.get("user_id") if isinstance(payload, dict) else None
+            return str(user_id) if user_id else None
+        except (BadSignature, SignatureExpired, TypeError, ValueError):
+            return None
+    return request.session.get("user_id")
 
 
 def _cipher() -> Fernet:
@@ -148,12 +167,22 @@ async def google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     await db.commit()
     request.session.clear()
     request.session["user_id"] = str(user.id)
-    return RedirectResponse(f"{settings.frontend_url.rstrip('/')}/?auth=success", status_code=303)
+    access_token = _auth_serializer().dumps({"user_id": str(user.id)})
+    # Put the short-lived app token in the URL fragment: browsers do not send it
+    # to the frontend server or include it in HTTP referrers.
+    return RedirectResponse(
+        f"{settings.frontend_url.rstrip('/')}/?auth=success#access_token={quote(access_token)}",
+        status_code=303,
+    )
 
 
 @router.get("/me", response_model=UserRead)
-async def current_user(request: Request, db: AsyncSession = Depends(get_db)):
-    user_id = request.session.get("user_id")
+async def current_user(
+    request: Request,
+    authorization: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    user_id = _authenticated_user_id(request, authorization)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated.")
     try:
@@ -173,9 +202,10 @@ async def current_user(request: Request, db: AsyncSession = Depends(get_db)):
 @router.get("/google/drive-status")
 async def google_drive_status(
     request: Request,
+    authorization: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    user_id = request.session.get("user_id")
+    user_id = _authenticated_user_id(request, authorization)
     if not user_id:
         raise HTTPException(status_code=401, detail="Not authenticated.")
     try:

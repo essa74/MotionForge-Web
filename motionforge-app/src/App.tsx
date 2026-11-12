@@ -159,20 +159,6 @@ export default function App() {
     <header className="chat-top">
       <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
       <div className="chat-brand"><span className="chat-logo">E</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
-      <div className="chat-header-actions">
-        {authUser ? <>
-          <div className="auth-user-chip">
-            {authUser.avatar_url
-              ? <img className="auth-user-avatar" src={authUser.avatar_url} alt="" referrerPolicy="no-referrer" />
-              : <span className="auth-user-avatar auth-user-avatar-fallback">{(authUser.display_name || authUser.email).trim().charAt(0).toUpperCase()}</span>}
-            <span className="auth-user-label" title={authUser.email}>{authUser.display_name || authUser.email}</span>
-          </div>
-          <button className="chat-new" onClick={() => void logout()}>تسجيل الخروج</button>
-        </> : <button className="chat-new" onClick={startGoogleLogin} disabled={authLoading}>
-          {authLoading ? 'جارٍ التحقق...' : 'الدخول باستخدام Google'}
-        </button>}
-        <button className="chat-new" onClick={newChat}>＋ محادثة جديدة</button>
-      </div>
     </header>
     <div className="chat-layout">
       <section className="chat-main">
@@ -227,7 +213,15 @@ export default function App() {
           </button>) : <p className="history-empty">{historySearch ? 'لا توجد محادثات مطابقة.' : 'محادثاتك الجديدة هتظهر هنا.'}</p>}
         </div>
         <div className="sidebar-bottom">
-          {authUser ? <><span className="sidebar-account">{authUser.display_name || authUser.email}</span><button onClick={() => void logout()}>تسجيل الخروج</button></> : <button onClick={startGoogleLogin}>تسجيل الدخول</button>}
+          {authUser ? <>
+            <div className="sidebar-profile">
+              {authUser.avatar_url
+                ? <img className="sidebar-profile-avatar" src={authUser.avatar_url} alt="" referrerPolicy="no-referrer" />
+                : <span className="sidebar-profile-avatar sidebar-profile-fallback">{(authUser.display_name || authUser.email).trim().charAt(0).toUpperCase()}</span>}
+              <span className="sidebar-account">{authUser.display_name || authUser.email}</span>
+            </div>
+            <button className="sidebar-logout" onClick={() => void logout()}>تسجيل الخروج</button>
+          </> : <button onClick={startGoogleLogin}>تسجيل الدخول باستخدام Google</button>}
         </div>
       </aside>
       {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة" />}

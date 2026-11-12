@@ -29,14 +29,21 @@ export default function App() {
     let active = true
     const params = new URLSearchParams(window.location.search)
     const authResult = params.get('auth')
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const incomingToken = hashParams.get('access_token')
+    if (incomingToken) localStorage.setItem('essa_studio_access_token', incomingToken)
     if (authResult === 'success') setNotice('تم تسجيل الدخول بنجاح إلى Google.')
     if (authResult === 'error') setNotice('تعذر تسجيل الدخول إلى Google. حاول مرة أخرى.')
-    if (authResult) {
-      params.delete('auth')
+    if (authResult) params.delete('auth')
+    if (authResult || incomingToken) {
       const query = params.toString()
-      window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : '') + window.location.hash)
+      window.history.replaceState({}, '', window.location.pathname + (query ? `?${query}` : ''))
     }
-    fetch(`${API_BASE_URL}/api/v1/auth/me`, { credentials: 'include' })
+    const savedToken = localStorage.getItem('essa_studio_access_token')
+    fetch(`${API_BASE_URL}/api/v1/auth/me`, {
+      credentials: 'include',
+      headers: savedToken ? { Authorization: `Bearer ${savedToken}` } : {},
+    })
       .then(async response => {
         if (!response.ok) return null
         return await response.json() as AuthUser
@@ -56,8 +63,12 @@ export default function App() {
       await fetch(`${API_BASE_URL}/api/v1/auth/logout`, {
         method: 'POST',
         credentials: 'include',
+        headers: localStorage.getItem('essa_studio_access_token')
+          ? { Authorization: `Bearer ${localStorage.getItem('essa_studio_access_token')}` }
+          : {},
       })
     } finally {
+      localStorage.removeItem('essa_studio_access_token')
       setAuthUser(null)
       setNotice('تم تسجيل الخروج.')
     }

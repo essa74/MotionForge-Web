@@ -1009,3 +1009,30 @@ body{background:#212121!important;color:#ececec}
   .send-button{padding:7px 11px;font-size:11px}
   .composer-disclaimer{font-size:8px}
 }
+
+
+/* Composer: clean ChatGPT-like input, no purple focus frame */
+.composer{border:1px solid #505050!important;border-radius:25px!important;background:#303030!important;box-shadow:0 3px 16px #0002!important;outline:0!important}
+.composer:focus-within{border-color:#666!important;box-shadow:0 3px 16px #0002!important}
+.composer textarea,.composer textarea:focus,.composer textarea:focus-visible{border:0!important;outline:0!important;box-shadow:none!important;background:transparent!important;appearance:none;-webkit-appearance:none}
+.composer-tools{display:flex;align-items:center;gap:10px;min-width:0}
+.attachment-types{font-size:10px!important;color:#999!important;white-space:nowrap}
+.attach-button{width:38px;height:38px;display:grid;place-items:center;padding:0!important;border:1px solid #666!important;border-radius:50%!important;background:transparent!important;color:#eee!important;font-size:25px!important;font-weight:400!important;line-height:1}
+.send-button{width:42px;height:42px;display:grid;place-items:center;padding:0!important;border:0!important;border-radius:50%!important;background:#f0f0f0!important;color:#222!important;transition:background .15s,transform .15s}
+.send-button svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.send-button:disabled{background:#666!important;color:#aaa!important;opacity:1!important}
+.send-button:not(:disabled):active{transform:scale(.94)}
+.send-loading{font-size:24px;line-height:1}
+.composer-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.pending-files{display:flex;flex-wrap:wrap;gap:7px;padding:5px 3px 10px}
+.pending-files>span{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid #555;border-radius:12px;background:#252525;color:#ddd;font-size:11px}
+.pending-files button{border:0;background:transparent;color:#ccc;font-size:16px}
+@media(max-width:700px){
+ .composer{border-radius:23px!important;padding:9px 11px!important}
+ .composer textarea,.composer textarea:focus,.composer textarea:focus-visible{min-height:58px!important;max-height:180px!important;padding:8px 5px!important;font-size:14px!important}
+ .composer-actions{justify-content:space-between;gap:8px}
+ .composer-tools{gap:8px}
+ .attach-button{width:36px;height:36px;font-size:23px!important}
+ .send-button{width:40px;height:40px}
+ .attachment-types{font-size:9px!important;white-space:normal;line-height:1.4}
+}

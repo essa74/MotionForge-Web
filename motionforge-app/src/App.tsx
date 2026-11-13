@@ -308,6 +308,42 @@ export default function App() {
     } finally { setAgentBusy(false) }
   }
 
+
+  async function runPersistentStorageTest() {
+    if (agentBusy) return
+    const token = localStorage.getItem('essa_studio_access_token')
+    if (!token) { setNotice('سجّل الدخول إلى Google أولاً.'); return }
+    setAgentBusy(true); setAgentResult('جارٍ اختبار الحفظ الدائم على قاعدة البيانات...')
+    try {
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+      const base = `${API_BASE_URL}/api/v1/storage`
+      const createResponse = await fetch(`${base}/workspaces`, {
+        method: 'POST', headers, body: JSON.stringify({ name: 'EssaStudio Storage Test' })
+      })
+      const created = await createResponse.json().catch(() => ({}))
+      if (!createResponse.ok) throw new Error(created.detail || 'تعذر إنشاء مساحة الحفظ.')
+      const workspaceId = created.workspace_id
+      const testContent = `EssaStudio AI persistent storage test\\nCreated: ${new Date().toISOString()}\\n`
+      const saveResponse = await fetch(`${base}/workspaces/${workspaceId}/files`, {
+        method: 'PUT', headers, body: JSON.stringify({ path: 'storage-test.txt', content: testContent })
+      })
+      const saved = await saveResponse.json().catch(() => ({}))
+      if (!saveResponse.ok) throw new Error(saved.detail || 'تعذر حفظ الملف.')
+      const readResponse = await fetch(`${base}/workspaces/${workspaceId}/files/storage-test.txt`, { headers })
+      const read = await readResponse.json().catch(() => ({}))
+      if (!readResponse.ok) throw new Error(read.detail || 'تعذر قراءة الملف بعد الحفظ.')
+      if (read.content !== testContent) throw new Error('تمت القراءة لكن المحتوى لا يطابق الملف المحفوظ.')
+      const listResponse = await fetch(`${base}/workspaces/${workspaceId}/files`, { headers })
+      const listed = await listResponse.json().catch(() => ({}))
+      if (!listResponse.ok) throw new Error(listed.detail || 'تعذر عرض ملفات المشروع.')
+      setAgentResult(`نجح اختبار قاعدة البيانات: إنشاء مشروع، حفظ ملف، قراءته ومطابقة محتواه، وعرض الملفات. عدد الملفات: ${listed.files?.length || 0}. معرّف المشروع: ${workspaceId}`)
+      setNotice('الحفظ الدائم يعمل في قاعدة البيانات. لم يتم اختبار الرندر في هذه الخطوة.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'حدث خطأ أثناء اختبار الحفظ الدائم.'
+      setAgentResult(message); setNotice(message)
+    } finally { setAgentBusy(false) }
+  }
+
   function openProject(item: VideoProject) { setProject(item); setNotice(''); setSidebarOpen(false) }
   function newChat() { setProject(null); setMessages([]); setAssets([]); setDraft(''); setFiles([]); setNotice(''); setSidebarOpen(false) }
   function togglePin(id: string) {
@@ -421,6 +457,9 @@ export default function App() {
       <aside className={`chat-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-heading"><b>مساحة العمل</b><button onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة">×</button></div>
         <button className="sidebar-new-chat" onClick={newChat}>＋ محادثة جديدة</button>
+        <button className="agent-test-button" onClick={() => void runPersistentStorageTest()} disabled={agentBusy || !authUser}>
+          {agentBusy ? 'جارٍ اختبار الحفظ...' : '💾 اختبار الحفظ الدائم'}
+        </button>
         <button className="agent-test-button" onClick={() => void runAgentWorkspaceTest()} disabled={agentBusy || !authUser}>
           {agentBusy ? 'جارٍ اختبار المحرك...' : '⚙ اختبار محرك الإنتاج'}
         </button>

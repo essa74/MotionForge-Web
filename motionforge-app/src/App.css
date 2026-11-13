@@ -1218,3 +1218,23 @@ body{background:#212121!important;color:#ececec}
  .header-new-chat{left:0;right:auto}
  .sidebar-toggle{margin-inline-start:0}
 }
+
+
+/* Final mobile header layout: menu left, brand centered, new chat right */
+.chat-top{position:relative;display:flex;align-items:center;justify-content:center;padding-inline:54px!important;gap:0!important}
+.chat-brand{position:absolute;left:50%;right:auto;top:50%;transform:translate(-50%,-50%);margin:0!important;display:flex;align-items:center;justify-content:center;white-space:nowrap}
+.sidebar-toggle{position:absolute;left:10px;right:auto;top:50%;transform:translateY(-50%);z-index:3;width:36px;height:36px;display:grid;place-items:center;border:0!important;border-radius:9px;background:transparent!important;color:#ddd;font-size:23px}
+.header-new-chat{position:absolute;right:10px;left:auto;top:50%;transform:translateY(-50%);z-index:3;width:36px;height:36px;flex:0 0 36px;border:0!important;border-radius:8px;background:transparent!important;color:#eee}
+.header-new-chat svg{width:23px;height:23px;stroke-width:2}
+.header-new-chat:hover,.sidebar-toggle:hover{background:#343434!important}
+.theme-light .sidebar-toggle,.theme-light .header-new-chat{color:#333!important}
+.theme-light .header-new-chat:hover,.theme-light .sidebar-toggle:hover{background:#eee!important}
+@media(max-width:700px){
+ .chat-top{height:58px!important;min-height:58px!important;flex-basis:58px!important;padding:0 52px!important;justify-content:center!important}
+ .chat-brand{left:50%;right:auto;margin:0!important;gap:7px;transform:translate(-50%,-50%)}
+ .chat-brand b{font-size:14px!important}
+ .chat-logo{width:34px;height:34px;flex:0 0 34px}
+ .sidebar-toggle{left:8px;right:auto;width:36px;height:36px;font-size:23px}
+ .header-new-chat{right:8px;left:auto;width:36px;height:36px;flex-basis:36px}
+ .header-new-chat svg{width:24px;height:24px}
+}

@@ -112,7 +112,7 @@ async def chat_reply(
             }]
         },
         "contents": contents,
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1800},
+        "generationConfig": {"temperature": 0.7, "maxOutputTokens": 8192},
     }
 
     # Retry temporary capacity errors, then try a lighter model as a fallback.
@@ -159,15 +159,19 @@ async def chat_reply(
                         raise HTTPException(status_code=502, detail=detail[:500])
 
                     data = response.json()
+                    candidates = data.get("candidates", [])
+                    candidate = candidates[0] if candidates else {}
                     answer = "".join(
                         part.get("text", "")
-                        for candidate in data.get("candidates", [])
                         for part in candidate.get("content", {}).get("parts", [])
                         if part.get("text")
                     ).strip()
                     if not answer:
                         raise HTTPException(status_code=502, detail="وصل رد فارغ من نموذج الذكاء الاصطناعي.")
-                    return {"reply": answer, "model": model}
+                    truncated = candidate.get("finishReason") == "MAX_TOKENS"
+                    if truncated:
+                        answer += "\n\n---\n**تنبيه:** وصل الرد إلى الحد الأقصى المسموح به وتم إيقافه. اكتب «كمّل من آخر نقطة» لاستكماله."
+                    return {"reply": answer, "model": model, "truncated": truncated}
 
                 # If the primary model is unavailable, continue with the fallback.
                 continue

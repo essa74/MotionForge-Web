@@ -1154,3 +1154,52 @@ body{background:#212121!important;color:#ececec}
  .welcome-new-chat{font-size:12px}
  .theme-toggle{width:31px;height:31px;flex-basis:31px}
 }
+
+
+/* Refined workspace controls */
+.header-new-chat{width:36px;height:36px;flex:0 0 36px;display:grid;place-items:center;border:1px solid #4a4a4a;border-radius:50%;background:#303030;color:#eee}
+.header-new-chat svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round}
+.header-new-chat:hover{background:#414141;color:#fff}
+.history-menu-wrap{position:relative;display:flex;align-items:center;flex:0 0 30px}
+.history-menu-trigger{width:30px;height:30px;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:#999;font-size:17px;letter-spacing:1px;line-height:1}
+.history-menu-trigger:hover,.project-choice.active .history-menu-trigger{background:#393939;color:#fff}
+.history-menu{position:absolute;z-index:50;top:30px;left:0;width:178px;padding:5px;border:1px solid #4a4a4a;border-radius:12px;background:#292929;box-shadow:0 12px 32px #0008;display:flex;flex-direction:column;gap:2px}
+.history-menu button{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 11px;border:0;border-radius:8px;background:transparent;color:#eee;text-align:right;font-size:12px}
+.history-menu button:hover{background:#3b3b3b}
+.history-menu button span{color:#aaa;font-size:15px}
+.history-menu .history-delete-action{color:#ff9292}
+.sidebar-theme-setting{display:flex;align-items:center;gap:10px;width:100%;padding:10px 11px;margin-bottom:10px;border:1px solid #444;border-radius:11px;background:#292929;color:#eee;text-align:right;font-size:13px}
+.sidebar-theme-setting b{margin-right:auto;color:#aaa;font-size:11px;font-weight:500}
+.sidebar-theme-icon{width:27px;height:27px;display:grid;place-items:center;border-radius:8px;background:#393939;color:#e7c36d;font-size:16px}
+.dialog-backdrop{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:22px;background:rgba(0,0,0,.66);backdrop-filter:blur(5px)}
+.app-dialog{width:min(100%,390px);padding:25px;border:1px solid #4a4a4a;border-radius:20px;background:#242424;color:#f3f3f3;box-shadow:0 24px 70px #0009;text-align:right;animation:dialog-in .16s ease-out}
+@keyframes dialog-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+.dialog-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:#482b30;color:#ff9a9a;font-size:23px}
+.app-dialog h2{margin:15px 0 8px;font-size:19px;font-weight:650}
+.app-dialog p{margin:0;color:#b7b7b7;font-size:13px;line-height:1.8}
+.dialog-actions{display:flex;gap:9px;margin-top:24px}
+.dialog-actions button{flex:1;padding:11px 12px;border:1px solid #4c4c4c;border-radius:10px;font-size:13px}
+.dialog-cancel{background:#303030;color:#eee}
+.dialog-confirm-delete{background:#b83b48;border-color:#b83b48!important;color:#fff}
+.dialog-confirm{background:#7441a4;border-color:#7441a4!important;color:#fff}
+.rename-dialog input{width:100%;margin-top:12px;padding:12px;border:1px solid #555;border-radius:10px;background:#181818;color:#fff;outline:none}
+.rename-dialog input:focus{border-color:#9362bd}
+.dialog-confirm:disabled{opacity:.45}
+.theme-light .history-menu{background:#fff;border-color:#ddd;box-shadow:0 12px 32px #0002}
+.theme-light .history-menu button{color:#333}
+.theme-light .history-menu button:hover{background:#f0edf5}
+.theme-light .history-menu .history-delete-action{color:#c33}
+.theme-light .history-menu-trigger{color:#777}
+.theme-light .sidebar-theme-setting{background:#f7f7f9;border-color:#ddd;color:#333}
+.theme-light .sidebar-theme-setting b{color:#777}
+.theme-light .sidebar-theme-icon{background:#eee;color:#74509c}
+.theme-light .header-new-chat{background:#fff;border-color:#ddd;color:#444}
+.theme-light .app-dialog{background:#fff;color:#252525;border-color:#ddd;box-shadow:0 24px 70px #0003}
+.theme-light .app-dialog p{color:#666}
+.theme-light .dialog-cancel{background:#f2f2f4;color:#333;border-color:#ddd}
+.theme-light .rename-dialog input{background:#fafafa;color:#222;border-color:#ddd}
+@media(max-width:700px){
+ .header-new-chat{width:32px;height:32px;flex-basis:32px}
+ .history-menu{left:0;right:auto}
+ .app-dialog{padding:21px;border-radius:18px}
+}

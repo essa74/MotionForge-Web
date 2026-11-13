@@ -1238,3 +1238,16 @@ body{background:#212121!important;color:#ececec}
  .header-new-chat{right:8px;left:auto;width:36px;height:36px;flex-basis:36px}
  .header-new-chat svg{width:24px;height:24px}
 }
+
+
+/* Requested header order: new-chat on the left, menu on the right */
+.chat-top{padding-inline:54px!important}
+.sidebar-toggle{left:auto!important;right:10px!important}
+.header-new-chat{left:10px!important;right:auto!important}
+.composer textarea{resize:none!important;-webkit-appearance:none;appearance:none}
+@media(max-width:700px){
+ .chat-top{padding-inline:52px!important}
+ .sidebar-toggle{left:auto!important;right:8px!important}
+ .header-new-chat{left:8px!important;right:auto!important}
+ .composer textarea{resize:none!important}
+}

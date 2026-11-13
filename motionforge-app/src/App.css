@@ -1105,3 +1105,52 @@ body{background:#212121!important;color:#ececec}
 .pending-file-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pending-file-item button{width:24px;height:24px;flex:0 0 24px;display:grid;place-items:center;border-radius:50%;background:#3a3a3a;color:#eee;font-size:17px}
 @media(max-width:700px){.attachment-image-link{width:96px;height:96px;max-width:96px}.attachment-video-preview{width:min(100%,160px)}.pending-file-name{max-width:110px}}
+
+
+/* Chat history controls, compact attachment remove button, and theme variants */
+.pending-file-item{padding:0!important;border:0!important;background:transparent!important;overflow:visible}
+.pending-thumb{position:relative;display:block;width:54px;height:54px;flex:0 0 54px;border:1px solid #555;border-radius:10px;background:#222}
+.pending-thumb img,.pending-thumb video{display:block;width:100%;height:100%;object-fit:cover;border-radius:9px}
+.pending-thumb button{position:absolute;top:-6px;right:-6px;width:21px;height:21px;min-width:21px;padding:0;border:1px solid #777;border-radius:50%;display:grid;place-items:center;background:#333;color:#fff;font-size:14px;line-height:1;box-shadow:0 2px 6px #0008}
+.pending-file-item>.pending-file-name{max-width:150px}
+.history-open{display:flex;align-items:center;gap:9px;flex:1;min-width:0;padding:0;border:0;background:transparent;color:inherit;text-align:right}
+.project-choice{display:flex!important;align-items:center;gap:5px}
+.history-actions{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.history-actions button{width:25px;height:27px;padding:0;border:0;border-radius:7px;background:transparent;color:#aaa;font-size:15px}
+.history-actions button:hover{background:#3a3a3a;color:#fff}
+.history-actions button:last-child:hover{color:#ff8585}
+.theme-toggle{width:34px;height:34px;flex:0 0 34px;border:1px solid #484848;border-radius:50%;background:#303030;color:#f5d98a;font-size:17px}
+.welcome-new-chat{margin-top:12px;padding:10px 17px;border:1px solid #666;border-radius:22px;background:#303030;color:#eee;font-size:13px}
+.theme-light{background:#f5f6f8!important;color:#20232a!important}
+.theme-light .chat-top{background:#fff!important;border-color:#e3e5e9!important}
+.theme-light .chat-brand,.theme-light .chat-brand b{color:#222!important}
+.theme-light .chat-brand small{color:#777!important}
+.theme-light .chat-main{background:#f5f6f8!important}
+.theme-light .chat-welcome h1{color:#222!important}
+.theme-light .chat-welcome p,.theme-light .composer-disclaimer{color:#666!important}
+.theme-light .welcome-suggestions button,.theme-light .welcome-new-chat{background:#fff!important;color:#333!important;border-color:#d5d8de!important}
+.theme-light .composer-wrap{background:linear-gradient(180deg,transparent,#f5f6f8 22%)!important}
+.theme-light .composer{background:#fff!important;border-color:#d5d8de!important;box-shadow:0 4px 20px #0001!important}
+.theme-light .composer textarea{color:#222!important}
+.theme-light .composer textarea::placeholder{color:#888!important}
+.theme-light .user-bubble{background:#e7eaf0!important;color:#20232a!important}
+.theme-light .assistant-bubble{color:#252832!important}
+.theme-light .chat-sidebar{background:#fff!important;border-color:#e1e3e8!important}
+.theme-light .sidebar-heading,.theme-light .sidebar-account,.theme-light .history-chat-copy b{color:#252832!important}
+.theme-light .sidebar-new-chat{background:#f0eafa!important;color:#56318a!important;border-color:#d9c8ee!important}
+.theme-light .history-search{background:#f7f7f9!important;border-color:#ddd!important}
+.theme-light .history-search input{color:#222!important}
+.theme-light .chat-sidebar .project-choice{color:#333!important}
+.theme-light .chat-sidebar .project-choice:hover,.theme-light .chat-sidebar .project-choice.active{background:#f0edf5!important}
+.theme-light .history-chat-copy small,.theme-light .history-label,.theme-light .history-empty{color:#777!important}
+.theme-light .sidebar-bottom{border-color:#e5e5e5!important}
+.theme-light .sidebar-toggle{color:#333!important}
+.theme-light .theme-toggle{background:#fff!important;color:#65439a!important;border-color:#ddd!important}
+.theme-light .markdown-content pre{background:#eee!important}
+.theme-light .bubble-file-chip{background:#eee!important;color:#333!important;border-color:#ddd!important}
+@media(max-width:700px){
+ .pending-thumb{width:50px;height:50px;flex-basis:50px}
+ .history-actions button{width:24px}
+ .welcome-new-chat{font-size:12px}
+ .theme-toggle{width:31px;height:31px;flex-basis:31px}
+}

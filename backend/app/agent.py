@@ -570,4 +570,3 @@ async def remotion_preflight(
         "execution_performed": False,
         "note": "الفحص ساكن فقط؛ لم يتم تشغيل npm أو أي كود من المشروع. إذا غابت أدوات Node أو FFmpeg نحتاج Worker منفصل للرندر.",
     }
-}

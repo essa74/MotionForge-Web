@@ -52,7 +52,26 @@ function MarkdownMessage({ text }: { text: string }) {
   return createElement('div', { className: 'markdown-content', dangerouslySetInnerHTML: renderMarkdown(text) })
 }
 
-type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string; files?: string[]; at: string }
+type ChatAttachment = { id: string; name: string; type: 'image' | 'video' | 'audio' | 'document'; mimeType: string }
+type ChatMessage = { id: string; role: 'user' | 'assistant'; text: string; files?: Array<ChatAttachment | string>; at: string }
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error(`تعذر قراءة الملف ${file.name}.`))
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const comma = result.indexOf(',')
+      if (comma < 0) reject(new Error(`تعذر تجهيز الملف ${file.name}.`))
+      else resolve(result.slice(comma + 1))
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+function attachmentName(file: ChatAttachment | string): string {
+  return typeof file === 'string' ? file : file.name
+}
 type AuthUser = { email: string; display_name?: string | null; avatar_url?: string | null }
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://essa-studio-ai-api.onrender.com'
 const chatKey = (id: string) => `motionforge_chat_${id}`
@@ -63,6 +82,7 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
   const [files, setFiles] = useState<File[]>([])
+  const [pendingPreviews, setPendingPreviews] = useState<Array<{ file: File; url: string }>>([])
   const [assets, setAssets] = useState<Array<ProjectAsset & { url: string }>>([])
   const [busy, setBusy] = useState(false)
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
@@ -151,6 +171,12 @@ export default function App() {
     return () => { live = false; assets.forEach(x => URL.revokeObjectURL(x.url)) }
   }, [project?.id])
   useEffect(() => { bottom.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, busy])
+  useEffect(() => {
+    const previews = files.filter(file => file.type.startsWith('image/') || file.type.startsWith('video/'))
+      .map(file => ({ file, url: URL.createObjectURL(file) }))
+    setPendingPreviews(previews)
+    return () => previews.forEach(item => URL.revokeObjectURL(item.url))
+  }, [files])
 
   function saveMessages(next: ChatMessage[]) {
     setMessages(next)
@@ -169,13 +195,21 @@ export default function App() {
         setProject(current)
         setProjects(getAllProjects())
       }
-      const saved = await saveProjectFiles(current.id, files.map(file => ({
+      const uploadedFiles = [...files]
+      const saved = await saveProjectFiles(current.id, uploadedFiles.map(file => ({
         file,
-        type: file.type.startsWith('audio/') ? 'audio' as const : file.type.startsWith('video/') ? 'video' as const : 'image' as const
+        type: file.type.startsWith('audio/') ? 'audio' as const : file.type.startsWith('video/') ? 'video' as const : file.type.startsWith('image/') ? 'image' as const : 'document' as const
       })))
+      const messageFiles: ChatAttachment[] = saved.map((asset, index) => ({
+        id: asset.id, name: asset.name, type: asset.type, mimeType: asset.mimeType || uploadedFiles[index]?.type || 'application/octet-stream'
+      }))
       const updated = saved.length ? updateProject(current.id, { assets: [...current.assets, ...saved] }) : current
+      if (saved.length) {
+        const freshAssets = await getProjectFiles(current.id)
+        setAssets(freshAssets)
+      }
       if (updated) { current = updated; setProject(updated); setProjects(getAllProjects()) }
-      const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', text, files: files.map(f => f.name), at: new Date().toISOString() }
+      const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', text, files: messageFiles, at: new Date().toISOString() }
       const next = [...(project ? messages : []), userMessage]
       setMessages(next)
       localStorage.setItem(chatKey(current.id), JSON.stringify(next))
@@ -185,8 +219,11 @@ export default function App() {
       if (!savedToken) throw new Error('انتهت جلسة الدخول. سجّل الدخول مرة أخرى.')
       const history = [...(project ? messages : []), userMessage]
         .slice(-20)
-        .map(message => ({ role: message.role, content: message.text || (message.files?.length ? `أرفقت الملفات التالية: ${message.files.join('، ')}` : '') }))
+        .map(message => ({ role: message.role, content: message.text || (message.files?.length ? `أرفقت الملفات التالية: ${message.files.map(attachmentName).join('، ')}` : '') }))
         .filter(message => message.content.trim())
+      const imageAttachments = await Promise.all(uploadedFiles
+        .filter(file => file.type.startsWith('image/'))
+        .map(async file => ({ name: file.name, mime_type: file.type, data: await fileToBase64(file) })))
       const controller = new AbortController()
       const requestTimeout = window.setTimeout(() => controller.abort(), 90000)
       let aiResponse: Response
@@ -198,7 +235,7 @@ export default function App() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${savedToken}`,
         },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, attachments: imageAttachments }),
         })
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') throw new Error('الرد اتأخر أكثر من 90 ثانية. جرّب إرسال الرسالة مرة أخرى.')
@@ -247,7 +284,15 @@ export default function App() {
           {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'message-group user-message-group' : 'message-group assistant-message-group'}>
             <div className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>
               {m.text && <MarkdownMessage text={m.text} />}
-              {m.files?.length ? <div className="bubble-files">📎 {m.files.join('، ')}</div> : null}
+              {m.files?.length ? <div className="bubble-attachments">{m.files.map((file, index) => {
+                const name = attachmentName(file)
+                const id = typeof file === 'string' ? '' : file.id
+                const asset = assets.find(item => item.id === id)
+                const mime = typeof file === 'string' ? '' : file.mimeType
+                if (mime.startsWith('image/') && asset?.url) return <a className="attachment-image-link" href={asset.url} target="_blank" rel="noreferrer" key={id || name}><img className="attachment-image-preview" src={asset.url} alt={name} /><span>{name}</span></a>
+                if (mime.startsWith('video/') && asset?.url) return <div className="attachment-video-preview" key={id || name}><video src={asset.url} controls preload="metadata" /><span>{name}</span></div>
+                return <span className="bubble-file-chip" key={id || `${name}-${index}`}>📎 {name}</span>
+              })}</div> : null}
             </div>
             <div className="message-tools">
               <button type="button" className="message-copy-button" onClick={async () => {
@@ -273,7 +318,14 @@ export default function App() {
         </div>}
         <div className="composer-wrap">
         <div className="composer">
-          {files.length > 0 && <div className="pending-files">{files.map((f, i) => <span key={i}>📎 {f.name} <button onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button></span>)}</div>}
+          {files.length > 0 && <div className="pending-files">{files.map((f, i) => {
+            const preview = pendingPreviews.find(item => item.file === f)
+            return <span className="pending-file-item" key={`${f.name}-${i}`}>
+              {preview && f.type.startsWith('image/') ? <img src={preview.url} alt={f.name} /> : preview && f.type.startsWith('video/') ? <video src={preview.url} muted /> : <span className="pending-file-icon">{f.type.startsWith('audio/') ? '♫' : '📄'}</span>}
+              <span className="pending-file-name">{f.name}</span>
+              <button type="button" aria-label={`إزالة ${f.name}`} onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button>
+            </span>
+          })}</div>}
           <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={3}
             placeholder={project ? 'اكتب التعديل أو التعليمات الجديدة...' : 'اكتب فكرة الفيديو والبرومبت الكامل هنا...'}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }} />

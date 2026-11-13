@@ -1,8 +1,8 @@
 import { createElement, useEffect, useRef, useState } from 'react'
 import './App.css'
 import type { ProjectAsset, VideoProject } from './engine/projectTypes'
-import { createProject, getAllProjects, updateProject } from './engine/projectStore'
-import { saveProjectFiles, getProjectFiles } from './engine/assetStore'
+import { createProject, getAllProjects, updateProject, deleteProject } from './engine/projectStore'
+import { saveProjectFiles, getProjectFiles, deleteProjectFiles } from './engine/assetStore'
 
 
 function renderMarkdown(source: string) {
@@ -92,6 +92,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [historySearch, setHistorySearch] = useState('')
+  const [pinnedIds, setPinnedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('essa_studio_pinned_chats') || '[]') } catch { return [] } })
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('essa_studio_theme') === 'light' ? 'light' : 'dark')
   const picker = useRef<HTMLInputElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
 
@@ -260,12 +262,38 @@ export default function App() {
 
   function openProject(item: VideoProject) { setProject(item); setNotice(''); setSidebarOpen(false) }
   function newChat() { setProject(null); setMessages([]); setAssets([]); setDraft(''); setFiles([]); setNotice(''); setSidebarOpen(false) }
+  function togglePin(id: string) {
+    setPinnedIds(current => {
+      const next = current.includes(id) ? current.filter(value => value !== id) : [...current, id]
+      localStorage.setItem('essa_studio_pinned_chats', JSON.stringify(next))
+      return next
+    })
+  }
+  function renameProject(item: VideoProject) {
+    const name = window.prompt('اكتب الاسم الجديد للمحادثة:', item.name)
+    if (!name?.trim()) return
+    const updated = updateProject(item.id, { name: name.trim().slice(0, 70) })
+    if (updated) { setProjects(getAllProjects()); if (project?.id === item.id) setProject(updated) }
+  }
+  async function removeProject(item: VideoProject) {
+    if (!window.confirm('هل تريد حذف هذه المحادثة نهائيًا؟')) return
+    deleteProject(item.id)
+    localStorage.removeItem(chatKey(item.id))
+    try { await deleteProjectFiles(item.id) } catch { /* keep deletion completed */ }
+    setPinnedIds(current => { const next = current.filter(id => id !== item.id); localStorage.setItem('essa_studio_pinned_chats', JSON.stringify(next)); return next })
+    setProjects(getAllProjects())
+    if (project?.id === item.id) newChat()
+  }
+  function toggleTheme() {
+    setTheme(current => { const next = current === 'dark' ? 'light' : 'dark'; localStorage.setItem('essa_studio_theme', next); return next })
+  }
   const visibleProjects = [...projects]
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .sort((a, b) => Number(pinnedIds.includes(b.id)) - Number(pinnedIds.includes(a.id)) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .filter(item => item.name.toLocaleLowerCase('ar').includes(historySearch.trim().toLocaleLowerCase('ar')))
 
-  return <main className="chat-app" dir="rtl">
+  return <main className={`chat-app ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} dir="rtl">
     <header className="chat-top">
+      <button className="theme-toggle" onClick={toggleTheme} aria-label="تغيير المظهر" title="تغيير المظهر">{theme === 'dark' ? '☀' : '☾'}</button>
       <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
       <div className="chat-brand"><span className="chat-logo">E</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
     </header>
@@ -275,6 +303,7 @@ export default function App() {
           <div className="welcome-mark">E</div>
           <h1>{authUser ? `أهلاً بيك، ${authUser.display_name || authUser.email.split('@')[0]}` : 'إيه اللي حابب نشتغل عليه؟'}</h1>
           <p>اكتب فكرتك، أو ارفع ملفاتك، وهنشتغل عليها مع بعض خطوة بخطوة.</p>
+          <button className="welcome-new-chat" onClick={newChat}>＋ ابدأ محادثة جديدة</button>
           <div className="welcome-suggestions">
             <button onClick={() => setDraft('عايز أعمل فيديو قصير من فكرة جديدة')}>🎬 إنشاء فيديو من فكرة</button>
             <button onClick={() => setDraft('عايز أكتب سيناريو وبرومبت لفيديو')}>✍️ كتابة سيناريو وبرومبت</button>
@@ -323,9 +352,7 @@ export default function App() {
           {files.length > 0 && <div className="pending-files">{files.map((f, i) => {
             const preview = pendingPreviews.find(item => item.file === f)
             return <span className="pending-file-item" key={`${f.name}-${i}`}>
-              {preview && f.type.startsWith('image/') ? <img src={preview.url} alt={f.name} /> : preview && f.type.startsWith('video/') ? <video src={preview.url} muted /> : <span className="pending-file-icon">{f.type.startsWith('audio/') ? '♫' : '📄'}</span>}
-              {!f.type.startsWith('image/') && !f.type.startsWith('video/') && <span className="pending-file-name">{f.name}</span>}
-              <button type="button" aria-label={`إزالة ${f.name}`} onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button>
+              {preview && f.type.startsWith('image/') ? <span className="pending-thumb"><img src={preview.url} alt="معاينة الصورة" /><button type="button" aria-label="إزالة الصورة" onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button></span> : preview && f.type.startsWith('video/') ? <span className="pending-thumb"><video src={preview.url} muted /><button type="button" aria-label="إزالة الفيديو" onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button></span> : <><span className="pending-file-icon">{f.type.startsWith('audio/') ? '♫' : '📄'}</span><span className="pending-file-name">{f.name}</span><button type="button" aria-label={`إزالة ${f.name}`} onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button></>}
             </span>
           })}</div>}
           <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={3}
@@ -355,8 +382,13 @@ export default function App() {
         <div className="history-label">الأخيرة</div>
         <div className="history-list">
           {visibleProjects.length ? visibleProjects.map(p => <button key={p.id} className={`project-choice ${project?.id === p.id ? 'active' : ''}`} onClick={() => openProject(p)}>
-            <span className="history-chat-icon">◷</span>
+            <span className="history-chat-icon">{pinnedIds.includes(p.id) ? '★' : '◷'}</span>
             <span className="history-chat-copy"><b>{p.name}</b><small>{new Date(p.updatedAt).toLocaleDateString('ar-EG')}</small></span>
+            <span className="history-actions">
+              <button type="button" title="تثبيت أو إلغاء التثبيت" onClick={event => { event.stopPropagation(); togglePin(p.id) }}>{pinnedIds.includes(p.id) ? '★' : '☆'}</button>
+              <button type="button" title="تعديل الاسم" onClick={event => { event.stopPropagation(); renameProject(p) }}>✎</button>
+              <button type="button" title="حذف المحادثة" onClick={event => { event.stopPropagation(); void removeProject(p) }}>×</button>
+            </span>
           </button>) : <p className="history-empty">{historySearch ? 'لا توجد محادثات مطابقة.' : 'محادثاتك الجديدة هتظهر هنا.'}</p>}
         </div>
         <div className="sidebar-bottom">

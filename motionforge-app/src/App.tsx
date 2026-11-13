@@ -90,6 +90,8 @@ export default function App() {
   const [storageStatus, setStorageStatus] = useState('جارٍ فحص حماية التخزين...')
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
+  const [agentBusy, setAgentBusy] = useState(false)
+  const [agentResult, setAgentResult] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [historySearch, setHistorySearch] = useState('')
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('essa_studio_pinned_chats') || '[]') } catch { return [] } })
@@ -264,6 +266,36 @@ export default function App() {
     } finally { setBusy(false) }
   }
 
+  async function runAgentWorkspaceTest() {
+    if (agentBusy) return
+    const token = localStorage.getItem('essa_studio_access_token')
+    if (!token) { setNotice('سجّل الدخول إلى Google أولاً.'); return }
+    setAgentBusy(true); setAgentResult('جارٍ إنشاء مساحة عمل...')
+    try {
+      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+      const workspaceResponse = await fetch(`${API_BASE_URL}/api/v1/agent/workspaces`, {
+        method: 'POST', headers, body: JSON.stringify({ name: 'EssaStudio Agent Test' })
+      })
+      const workspaceData = await workspaceResponse.json().catch(() => ({}))
+      if (!workspaceResponse.ok) throw new Error(workspaceData.detail || 'تعذر إنشاء مساحة العمل.')
+      localStorage.setItem('essa_studio_agent_workspace', workspaceData.workspace_id)
+      setAgentResult('تم إنشاء مساحة العمل. جارٍ تجهيز مشروع Remotion...')
+      const scaffoldResponse = await fetch(`${API_BASE_URL}/api/v1/agent/workspaces/${workspaceData.workspace_id}/scaffold/remotion`, {
+        method: 'POST', headers, body: JSON.stringify({
+          project_name: 'EssaStudioIntro', composition_id: 'EssaStudioIntro',
+          title: 'EssaStudio AI', duration_seconds: 7, width: 1920, height: 1080, fps: 30
+        })
+      })
+      const scaffoldData = await scaffoldResponse.json().catch(() => ({}))
+      if (!scaffoldResponse.ok) throw new Error(scaffoldData.detail || 'تعذر إنشاء مشروع Remotion.')
+      setAgentResult(`نجح الاختبار! تم إنشاء مساحة العمل ومشروع Remotion وفيه ${scaffoldData.files?.length || 0} ملفات. المعرّف: ${workspaceData.workspace_id}`)
+      setNotice('محرك الإنتاج أنشأ مشروع Remotion بنجاح.')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'حدث خطأ أثناء اختبار المحرك.'
+      setAgentResult(message); setNotice(message)
+    } finally { setAgentBusy(false) }
+  }
+
   function openProject(item: VideoProject) { setProject(item); setNotice(''); setSidebarOpen(false) }
   function newChat() { setProject(null); setMessages([]); setAssets([]); setDraft(''); setFiles([]); setNotice(''); setSidebarOpen(false) }
   function togglePin(id: string) {
@@ -377,6 +409,10 @@ export default function App() {
       <aside className={`chat-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-heading"><b>مساحة العمل</b><button onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة">×</button></div>
         <button className="sidebar-new-chat" onClick={newChat}>＋ محادثة جديدة</button>
+        <button className="agent-test-button" onClick={() => void runAgentWorkspaceTest()} disabled={agentBusy || !authUser}>
+          {agentBusy ? 'جارٍ اختبار المحرك...' : '⚙ اختبار محرك الإنتاج'}
+        </button>
+        {agentResult && <div className="agent-test-result" role="status">{agentResult}</div>}
         <label className="history-search">
           <span>⌕</span>
           <input value={historySearch} onChange={event => setHistorySearch(event.target.value)} placeholder="ابحث في المحادثات" />

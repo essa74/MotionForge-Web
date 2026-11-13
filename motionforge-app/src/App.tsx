@@ -315,7 +315,7 @@ export default function App() {
           </article>)}
           {busy && <article className="bubble assistant-bubble typing-bubble"><p>بفكر في طلبك وبجهز الرد... <span className="typing-dots">•••</span></p></article>}
           {notice && <div className="chat-notice">{notice}</div>}
-          {assets.length > 0 && <div className="asset-strip">{assets.map(a => <span key={a.id}>📎 {a.name}</span>)}</div>}
+          {assets.some(a => a.type !== "image" && a.type !== "video") && <div className="asset-strip">{assets.filter(a => a.type !== "image" && a.type !== "video").map(a => <span key={a.id}>📎 {a.name}</span>)}</div>}
           <div ref={bottom} />
         </div>}
         <div className="composer-wrap">

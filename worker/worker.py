@@ -195,6 +195,20 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     write_json(self, 200, job.copy())
             return
+        output_match = re.fullmatch(r"/outputs/([0-9a-f-]{36})/video\\.mp4", self.path)
+        if output_match:
+            output_path = (OUTPUT_ROOT / output_match.group(1) / "video.mp4").resolve()
+            if not output_path.is_relative_to(OUTPUT_ROOT) or not output_path.is_file():
+                write_json(self, 404, {"detail": "Output not found"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "video/mp4")
+            self.send_header("Content-Length", str(output_path.stat().st_size))
+            self.send_header("Content-Disposition", 'attachment; filename="video.mp4"')
+            self.end_headers()
+            with output_path.open("rb") as video:
+                shutil.copyfileobj(video, self.wfile)
+            return
         write_json(self, 404, {"detail": "Not found"})
 
     def do_POST(self):

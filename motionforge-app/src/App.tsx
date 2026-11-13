@@ -296,7 +296,7 @@ export default function App() {
             </div>
             <div className="message-tools">
               <button type="button" className="message-copy-button" onClick={async () => {
-                const content = [m.text, ...(m.files?.length ? [`المرفقات: ${m.files.join('، ')}`] : [])].filter(Boolean).join('\n');
+                const content = [m.text, ...(m.files?.length ? [`المرفقات: ${m.files.map(attachmentName).join('، ')}`] : [])].filter(Boolean).join('\n');
                 try {
                   await navigator.clipboard.writeText(content);
                   setCopiedMessageId(m.id);

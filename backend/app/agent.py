@@ -192,7 +192,7 @@ async def list_workspace_files(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = await _hydrate_workspace(user_id, workspace_id)
+    root = await _hydrateawait _hydrate_workspace(user_id, workspace_id)
     files = []
     for item in root.rglob("*"):
         if item.is_file() and not item.is_symlink() and item.name != "workspace.json":
@@ -213,7 +213,7 @@ async def write_workspace_file(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     encoded = payload.content.encode("utf-8")
     if len(encoded) > MAX_FILE_BYTES:
         raise HTTPException(status_code=413, detail="حجم الملف أكبر من الحد المسموح (1 ميجابايت).")
@@ -238,7 +238,7 @@ async def read_workspace_file(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     target = _safe_file_path(root, file_path)
     if not target.is_file():
         raise HTTPException(status_code=404, detail="الملف غير موجود.")
@@ -258,7 +258,7 @@ async def validate_workspace(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     results = []
     for item in root.rglob("*"):
         if not item.is_file() or item.is_symlink() or item.name == "workspace.json":
@@ -309,7 +309,7 @@ async def create_video_plan(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     plan_id = str(uuid.uuid4())
     phases = [
         {
@@ -403,7 +403,7 @@ async def get_video_plan(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     try:
         safe_plan_id = str(uuid.UUID(plan_id))
     except ValueError:
@@ -437,7 +437,7 @@ async def scaffold_remotion_project(
     import re
 
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     project_dir = _safe_file_path(root, "remotion")
     if project_dir.exists() and any(project_dir.iterdir()) and not payload.overwrite:
         raise HTTPException(status_code=409, detail="يوجد مشروع Remotion بالفعل. فعّل overwrite لاستبدال ملفاته.")
@@ -603,7 +603,7 @@ async def remotion_preflight(
 ):
     """Static project checks plus runtime discovery; never executes project code."""
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     project = _safe_file_path(root, "remotion")
     if not project.is_dir():
         raise HTTPException(status_code=404, detail="مشروع Remotion غير موجود.")
@@ -688,7 +688,7 @@ async def submit_remotion_render(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     project = _safe_file_path(root, "remotion")
     if not project.is_dir():
         raise HTTPException(status_code=404, detail="مشروع Remotion غير موجود.")
@@ -741,7 +741,7 @@ async def get_remotion_render_status(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    _workspace(user_id, workspace_id)
+    await _hydrate_workspace(user_id, workspace_id)
     try:
         safe_job_id = str(uuid.UUID(job_id))
     except ValueError:
@@ -772,7 +772,7 @@ async def download_remotion_render(
     from fastapi.responses import Response
 
     user_id = _require_user(request, authorization)
-    _workspace(user_id, workspace_id)
+    await _hydrate_workspace(user_id, workspace_id)
     try:
         safe_job_id = str(uuid.UUID(job_id))
     except ValueError:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import hashlib
+import httpx
 import json
 import os
 import shutil
@@ -570,3 +571,131 @@ async def remotion_preflight(
         "execution_performed": False,
         "note": "الفحص ساكن فقط؛ لم يتم تشغيل npm أو أي كود من المشروع. إذا غابت أدوات Node أو FFmpeg نحتاج Worker منفصل للرندر.",
     }
+
+
+
+def _worker_config() -> tuple[str, str]:
+    base_url = os.getenv("ESSASTUDIO_WORKER_URL", "").strip().rstrip("/")
+    token = os.getenv("ESSASTUDIO_WORKER_TOKEN", "").strip()
+    if not base_url or not token:
+        raise HTTPException(
+            status_code=503,
+            detail="خدمة الرندر المنفصلة غير متصلة بعد. يلزم نشر Worker وضبط إعدادات الاتصال.",
+        )
+    return base_url, token
+
+
+@router.post("/workspaces/{workspace_id}/remotion/render")
+async def submit_remotion_render(
+    workspace_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    user_id = _require_user(request, authorization)
+    root = _workspace(user_id, workspace_id)
+    project = _safe_file_path(root, "remotion")
+    if not project.is_dir():
+        raise HTTPException(status_code=404, detail="مشروع Remotion غير موجود.")
+
+    required = ["package.json", "src/index.ts", "src/Root.tsx"]
+    for relative in required:
+        if not _safe_file_path(root, "remotion/" + relative).is_file():
+            raise HTTPException(status_code=400, detail=f"ملف أساسي مفقود: {relative}")
+
+    files = []
+    for item in project.rglob("*"):
+        if not item.is_file() or item.is_symlink():
+            continue
+        relative = item.relative_to(project).as_posix()
+        safe = _safe_file_path(root, "remotion/" + relative)
+        if safe.stat().st_size > MAX_FILE_BYTES:
+            raise HTTPException(status_code=413, detail=f"الملف {relative} أكبر من الحد المسموح.")
+        try:
+            content = safe.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(status_code=415, detail=f"الملف {relative} ليس ملفًا نصيًا مدعومًا حاليًا.") from None
+        files.append({"path": relative, "content": content})
+        if len(files) > 80:
+            raise HTTPException(status_code=413, detail="المشروع يحتوي ملفات أكثر من الحد المسموح.")
+
+    base_url, token = _worker_config()
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                base_url + "/jobs",
+                headers={"Authorization": "Bearer " + token},
+                json={"workspace_id": workspace_id, "files": files},
+            )
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="تعذر الاتصال بخدمة الرندر.") from None
+    if response.status_code >= 400:
+        try:
+            detail = response.json().get("detail", "رفضت خدمة الرندر المهمة.")
+        except ValueError:
+            detail = "رفضت خدمة الرندر المهمة."
+        raise HTTPException(status_code=response.status_code, detail=detail)
+    return response.json()
+
+
+@router.get("/workspaces/{workspace_id}/remotion/jobs/{job_id}")
+async def get_remotion_render_status(
+    workspace_id: str,
+    job_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    user_id = _require_user(request, authorization)
+    _workspace(user_id, workspace_id)
+    try:
+        safe_job_id = str(uuid.UUID(job_id))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="مهمة الرندر غير موجودة.") from None
+    if safe_job_id != workspace_id:
+        raise HTTPException(status_code=404, detail="مهمة الرندر غير موجودة.")
+    base_url, token = _worker_config()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            response = await client.get(
+                base_url + "/jobs/" + safe_job_id,
+                headers={"Authorization": "Bearer " + token},
+            )
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="تعذر الاتصال بخدمة الرندر.") from None
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail="تعذر استرجاع حالة مهمة الرندر.")
+    return response.json()
+
+
+@router.get("/workspaces/{workspace_id}/remotion/jobs/{job_id}/download")
+async def download_remotion_render(
+    workspace_id: str,
+    job_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    from fastapi.responses import Response
+
+    user_id = _require_user(request, authorization)
+    _workspace(user_id, workspace_id)
+    try:
+        safe_job_id = str(uuid.UUID(job_id))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="مهمة الرندر غير موجودة.") from None
+    if safe_job_id != workspace_id:
+        raise HTTPException(status_code=404, detail="مهمة الرندر غير موجودة.")
+    base_url, token = _worker_config()
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(
+                base_url + f"/outputs/{safe_job_id}/video.mp4",
+                headers={"Authorization": "Bearer " + token},
+            )
+    except httpx.HTTPError:
+        raise HTTPException(status_code=502, detail="تعذر تنزيل الفيديو من خدمة الرندر.") from None
+    if response.status_code >= 400:
+        raise HTTPException(status_code=response.status_code, detail="ملف الفيديو غير جاهز أو غير موجود.")
+    return Response(
+        content=response.content,
+        media_type="video/mp4",
+        headers={"Content-Disposition": 'attachment; filename="essastudio-video.mp4"'},
+    )

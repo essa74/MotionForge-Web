@@ -302,22 +302,15 @@ export default function App() {
 
   return <main className={`chat-app ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} dir="rtl">
     <header className="chat-top">
-      <button className="header-new-chat" onClick={newChat} aria-label="محادثة جديدة" title="محادثة جديدة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
-      <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
       <div className="chat-brand"><span className="chat-logo">E</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
+      <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
+      <button className="header-new-chat" onClick={newChat} aria-label="محادثة جديدة" title="محادثة جديدة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
     </header>
     <div className="chat-layout">
       <section className="chat-main">
         {!project && messages.length === 0 ? <div className="chat-welcome">
-          <div className="welcome-mark">E</div>
           <h1>{authUser ? `أهلاً بيك، ${authUser.display_name || authUser.email.split('@')[0]}` : 'إيه اللي حابب نشتغل عليه؟'}</h1>
           <p>اكتب فكرتك، أو ارفع ملفاتك، وهنشتغل عليها مع بعض خطوة بخطوة.</p>
-          <button className="welcome-new-chat" onClick={newChat}>＋ ابدأ محادثة جديدة</button>
-          <div className="welcome-suggestions">
-            <button onClick={() => setDraft('عايز أعمل فيديو قصير من فكرة جديدة')}>🎬 إنشاء فيديو من فكرة</button>
-            <button onClick={() => setDraft('عايز أكتب سيناريو وبرومبت لفيديو')}>✍️ كتابة سيناريو وبرومبت</button>
-            <button onClick={() => setDraft('عايز أجهز فيديو من ملفات وصور عندي')}>🖼️ العمل على ملفات وصور</button>
-          </div>
         </div> : <div className="chat-thread">
           {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'message-group user-message-group' : 'message-group assistant-message-group'}>
             <div className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>

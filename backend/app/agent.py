@@ -193,3 +193,125 @@ async def validate_workspace(
         "failed": sum(1 for result in results if not result["valid"]),
         "results": results,
     }
+
+
+
+class VideoPlanRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    duration_seconds: int = Field(default=7, ge=1, le=600)
+    width: int = Field(default=1920, ge=240, le=3840)
+    height: int = Field(default=1080, ge=240, le=3840)
+    fps: int = Field(default=30, ge=12, le=60)
+    style: str = Field(default="cinematic", max_length=80)
+
+
+@router.post("/workspaces/{workspace_id}/plans/video")
+async def create_video_plan(
+    workspace_id: str,
+    payload: VideoPlanRequest,
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    user_id = _require_user(request, authorization)
+    root = _workspace(user_id, workspace_id)
+    plan_id = str(uuid.uuid4())
+    phases = [
+        {
+            "id": "inspect_assets",
+            "title": "فحص الأصول",
+            "description": "حصر الصور والشعار والصوت والتأكد من صيغها وأبعادها ومددها.",
+            "status": "pending",
+            "requires": ["workspace_files"],
+        },
+        {
+            "id": "production_design",
+            "title": "تصميم خطة الإنتاج",
+            "description": "إعداد التسلسل الزمني والمشاهد والحركة والتعليق والمؤثرات.",
+            "status": "pending",
+            "requires": ["asset_report"],
+        },
+        {
+            "id": "build_remotion",
+            "title": "بناء مشروع Remotion",
+            "description": "إنشاء ملفات المشروع والمكونات والـ Composition وربط الأصول.",
+            "status": "pending",
+            "requires": ["production_design"],
+        },
+        {
+            "id": "validate_project",
+            "title": "فحص المشروع",
+            "description": "التحقق من الملفات والاعتمادات وإعدادات الفيديو قبل الرندر.",
+            "status": "pending",
+            "requires": ["build_remotion"],
+        },
+        {
+            "id": "render_preview",
+            "title": "رندر معاينة",
+            "description": "إنتاج نسخة معاينة قصيرة أو إطارات اختبار.",
+            "status": "pending",
+            "requires": ["validate_project"],
+        },
+        {
+            "id": "quality_review",
+            "title": "مراجعة الجودة",
+            "description": "فحص الإطارات والصوت والتوقيت والتكوين البصري.",
+            "status": "pending",
+            "requires": ["render_preview"],
+        },
+        {
+            "id": "render_final",
+            "title": "الرندر النهائي",
+            "description": "إنتاج ملف MP4 بالمقاس ومعدل الإطارات المحددين.",
+            "status": "pending",
+            "requires": ["quality_review"],
+        },
+        {
+            "id": "verify_export",
+            "title": "التحقق والتسليم",
+            "description": "التحقق من سلامة ملف MP4 ومدة الفيديو وحجمه وتجهيزه للتنزيل.",
+            "status": "pending",
+            "requires": ["render_final"],
+        },
+    ]
+    plan = {
+        "id": plan_id,
+        "kind": "video",
+        "title": payload.title,
+        "status": "planned",
+        "settings": {
+            "duration_seconds": payload.duration_seconds,
+            "width": payload.width,
+            "height": payload.height,
+            "fps": payload.fps,
+            "style": payload.style,
+        },
+        "total_frames": payload.duration_seconds * payload.fps,
+        "phases": phases,
+        "execution_enabled": False,
+        "note": "هذه خطة إنتاج منظمة. تنفيذ أوامر النظام والرندر غير مفعّل في هذه المرحلة.",
+    }
+    plans_dir = root / "plans"
+    plans_dir.mkdir(exist_ok=True)
+    (plans_dir / f"{plan_id}.json").write_text(
+        json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    return plan
+
+
+@router.get("/workspaces/{workspace_id}/plans/{plan_id}")
+async def get_video_plan(
+    workspace_id: str,
+    plan_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    user_id = _require_user(request, authorization)
+    root = _workspace(user_id, workspace_id)
+    try:
+        safe_plan_id = str(uuid.UUID(plan_id))
+    except ValueError:
+        raise HTTPException(status_code=404, detail="خطة الإنتاج غير موجودة.") from None
+    plan_file = root / "plans" / f"{safe_plan_id}.json"
+    if not plan_file.is_file():
+        raise HTTPException(status_code=404, detail="خطة الإنتاج غير موجودة.")
+    return json.loads(plan_file.read_text(encoding="utf-8"))

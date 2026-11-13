@@ -104,6 +104,12 @@ async def _persist_workspace(user_id: str, workspace_id: str, root: Path) -> Non
         workspace = result.scalar_one_or_none()
         if workspace is None:
             raise HTTPException(status_code=404, detail="مساحة العمل غير موجودة.")
+        # One query for all existing records instead of two queries per file.
+        existing_result = await db.execute(
+            select(AgentWorkspaceFile).where(AgentWorkspaceFile.workspace_id == safe_id)
+        )
+        existing = {record.path: record for record in existing_result.scalars().all()}
+        total_files = len(existing)
         for item in root.rglob("*"):
             if not item.is_file() or item.is_symlink() or item.name == "workspace.json":
                 continue
@@ -115,23 +121,15 @@ async def _persist_workspace(user_id: str, workspace_id: str, root: Path) -> Non
                 content = item.read_text(encoding="utf-8")
             except UnicodeDecodeError:
                 continue
-            record_result = await db.execute(
-                select(AgentWorkspaceFile).where(
-                    AgentWorkspaceFile.workspace_id == safe_id,
-                    AgentWorkspaceFile.path == relative,
-                )
-            )
-            record = record_result.scalar_one_or_none()
+            record = existing.get(relative)
             if record is None:
-                count_result = await db.execute(
-                    select(AgentWorkspaceFile).where(AgentWorkspaceFile.workspace_id == safe_id)
-                )
-                if len(count_result.scalars().all()) >= MAX_FILES:
+                if total_files >= MAX_FILES:
                     raise HTTPException(status_code=413, detail="وصل المشروع إلى الحد الأقصى لعدد الملفات.")
                 db.add(AgentWorkspaceFile(
                     workspace_id=safe_id, path=relative, content=content, size_bytes=size
                 ))
-            else:
+                total_files += 1
+            elif record.content != content:
                 record.content = content
                 record.size_bytes = size
         await db.commit()
@@ -164,7 +162,35 @@ def _require_user(request: Request, authorization: str | None) -> str:
 
 
 class _HTMLValidator(HTMLParser):
-    pass
+    """Reports unclosed or mismatched tags; void elements are ignored."""
+
+    VOID = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input",
+        "link", "meta", "param", "source", "track", "wbr",
+    }
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.stack: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag not in self.VOID:
+            self.stack.append(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        pass
+
+    def handle_endtag(self, tag):
+        if tag in self.VOID:
+            return
+        if not self.stack or self.stack[-1] != tag:
+            raise ValueError(f"وسم إغلاق غير متطابق: </{tag}>")
+        self.stack.pop()
+
+    def close(self):
+        super().close()
+        if self.stack:
+            raise ValueError(f"وسم غير مغلق: <{self.stack[-1]}>")
 
 
 @router.post("/workspaces")
@@ -459,10 +485,10 @@ async def scaffold_remotion_project(
             "dependencies": {
                 "@remotion/cli": "^4.0.0",
                 "remotion": "^4.0.0",
-                "react": "^18.2.0",
-                "react-dom": "^18.2.0"
+                "react": "^19.0.0",
+                "react-dom": "^19.0.0"
             },
-            "devDependencies": {"@types/react": "^18.2.0", "typescript": "^5.4.0"}
+            "devDependencies": {"@types/react": "^19.0.0", "typescript": "^5.4.0"}
         },
         "tsconfig.json": {
             "compilerOptions": {
@@ -769,7 +795,7 @@ async def download_remotion_render(
     request: Request,
     authorization: str | None = Header(default=None),
 ):
-    from fastapi.responses import Response
+    from fastapi.responses import StreamingResponse
 
     user_id = _require_user(request, authorization)
     await _hydrate_workspace(user_id, workspace_id)
@@ -780,18 +806,36 @@ async def download_remotion_render(
     if safe_job_id != workspace_id:
         raise HTTPException(status_code=404, detail="مهمة الرندر غير موجودة.")
     base_url, token = _worker_config()
+
+    # Stream the MP4 through instead of buffering the whole file in API memory.
+    client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, read=120.0))
     try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.get(
+        upstream = await client.send(
+            client.build_request(
+                "GET",
                 base_url + f"/outputs/{safe_job_id}/video.mp4",
                 headers={"Authorization": "Bearer " + token},
-            )
+            ),
+            stream=True,
+        )
     except httpx.HTTPError:
+        await client.aclose()
         raise HTTPException(status_code=502, detail="تعذر تنزيل الفيديو من خدمة الرندر.") from None
-    if response.status_code >= 400:
-        raise HTTPException(status_code=response.status_code, detail="ملف الفيديو غير جاهز أو غير موجود.")
-    return Response(
-        content=response.content,
-        media_type="video/mp4",
-        headers={"Content-Disposition": 'attachment; filename="essastudio-video.mp4"'},
-    )
+    if upstream.status_code >= 400:
+        status_code = upstream.status_code
+        await upstream.aclose()
+        await client.aclose()
+        raise HTTPException(status_code=status_code, detail="ملف الفيديو غير جاهز أو غير موجود.")
+
+    async def body():
+        try:
+            async for chunk in upstream.aiter_bytes(chunk_size=256 * 1024):
+                yield chunk
+        finally:
+            await upstream.aclose()
+            await client.aclose()
+
+    headers = {"Content-Disposition": 'attachment; filename="essastudio-video.mp4"'}
+    if upstream.headers.get("content-length"):
+        headers["Content-Length"] = upstream.headers["content-length"]
+    return StreamingResponse(body(), media_type="video/mp4", headers=headers)

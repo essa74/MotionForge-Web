@@ -202,7 +202,7 @@ async def current_user(
 @router.get("/google/drive-status")
 async def google_drive_status(
     request: Request,
-    authorization: str | None = None,
+    authorization: str | None = Header(default=None),
     db: AsyncSession = Depends(get_db),
 ):
     user_id = _authenticated_user_id(request, authorization)

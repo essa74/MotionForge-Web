@@ -24,6 +24,17 @@ MAX_RENDER_SECONDS = 240
 JOBS: dict[str, dict] = {}
 LOCK = threading.Lock()
 
+# Project code (Root.tsx, npm packages) runs inside these subprocesses, so they
+# receive only an allowlist of variables. WORKER_TOKEN and any other secret in
+# the worker's own environment must never reach project code.
+_SAFE_ENV_KEYS = ("PATH", "HOME", "LANG", "LC_ALL", "TMPDIR", "NODE_PATH", "TZ")
+
+
+def sandbox_env(**extra: str) -> dict[str, str]:
+    env = {key: os.environ[key] for key in _SAFE_ENV_KEYS if key in os.environ}
+    env.update(extra)
+    return env
+
 
 def safe_id(value: str) -> str:
     try:
@@ -135,7 +146,7 @@ def run_job(job_id: str, payload: dict) -> None:
         install = subprocess.run(
             ["npm", "install", "--no-audit", "--no-fund", "--ignore-scripts"],
             cwd=job_dir, capture_output=True, text=True, timeout=120, check=False,
-            env={**os.environ, "CI": "1", "npm_config_audit": "false"},
+            env=sandbox_env(CI="1", npm_config_audit="false"),
         )
         if install.returncode != 0:
             raise RuntimeError(("npm install failed: " + install.stderr[-2500:])[:3000])
@@ -150,7 +161,7 @@ def run_job(job_id: str, payload: dict) -> None:
              "out/video.mp4", "--codec=h264", "--log=error"],
             cwd=job_dir, capture_output=True, text=True,
             timeout=MAX_RENDER_SECONDS, check=False,
-            env={**os.environ, "CI": "1"},
+            env=sandbox_env(CI="1"),
         )
         if render.returncode != 0:
             raise RuntimeError(("Remotion render failed: " + render.stderr[-2500:] + render.stdout[-1000:])[:3500])

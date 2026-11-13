@@ -381,15 +381,17 @@ export default function App() {
         </label>
         <div className="history-label">الأخيرة</div>
         <div className="history-list">
-          {visibleProjects.length ? visibleProjects.map(p => <button key={p.id} className={`project-choice ${project?.id === p.id ? 'active' : ''}`} onClick={() => openProject(p)}>
-            <span className="history-chat-icon">{pinnedIds.includes(p.id) ? '★' : '◷'}</span>
-            <span className="history-chat-copy"><b>{p.name}</b><small>{new Date(p.updatedAt).toLocaleDateString('ar-EG')}</small></span>
+          {visibleProjects.length ? visibleProjects.map(p => <div key={p.id} className={`project-choice ${project?.id === p.id ? 'active' : ''}`}>
+            <button type="button" className="history-open" onClick={() => openProject(p)}>
+              <span className="history-chat-icon">{pinnedIds.includes(p.id) ? '★' : '◷'}</span>
+              <span className="history-chat-copy"><b>{p.name}</b><small>{new Date(p.updatedAt).toLocaleDateString('ar-EG')}</small></span>
+            </button>
             <span className="history-actions">
               <button type="button" title="تثبيت أو إلغاء التثبيت" onClick={event => { event.stopPropagation(); togglePin(p.id) }}>{pinnedIds.includes(p.id) ? '★' : '☆'}</button>
               <button type="button" title="تعديل الاسم" onClick={event => { event.stopPropagation(); renameProject(p) }}>✎</button>
               <button type="button" title="حذف المحادثة" onClick={event => { event.stopPropagation(); void removeProject(p) }}>×</button>
             </span>
-          </button>) : <p className="history-empty">{historySearch ? 'لا توجد محادثات مطابقة.' : 'محادثاتك الجديدة هتظهر هنا.'}</p>}
+          </div>) : <p className="history-empty">{historySearch ? 'لا توجد محادثات مطابقة.' : 'محادثاتك الجديدة هتظهر هنا.'}</p>}
         </div>
         <div className="sidebar-bottom">
           {authUser ? <>

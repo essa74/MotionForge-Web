@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.agent import router as agent_router
 from app.auth import router as auth_router
 from app.chat import router as chat_router
 from app.config import settings
@@ -35,6 +36,7 @@ if settings.session_secret:
     )
 
 app.include_router(auth_router, prefix=settings.api_v1_prefix)
+app.include_router(agent_router, prefix=settings.api_v1_prefix)
 app.include_router(chat_router, prefix=settings.api_v1_prefix)
 
 

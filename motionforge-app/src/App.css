@@ -1251,3 +1251,30 @@ body{background:#212121!important;color:#ececec}
  .header-new-chat{left:8px!important;right:auto!important}
  .composer textarea{resize:none!important}
 }
+
+
+.agent-test-button {
+  width: 100%;
+  margin: 12px 0 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(151, 112, 255, .55);
+  border-radius: 12px;
+  color: #e9ddff;
+  background: linear-gradient(135deg, rgba(105, 65, 170, .28), rgba(61, 43, 99, .35));
+  font-weight: 700;
+  text-align: right;
+}
+.agent-test-button:disabled { opacity: .55; cursor: wait; }
+.agent-test-result {
+  margin: 6px 0 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(133, 111, 170, .28);
+  border-radius: 10px;
+  color: #c9bfd8;
+  background: rgba(25, 22, 34, .8);
+  font-size: 12px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.theme-light .agent-test-button { color: #4b3276; background: #f0e9ff; }
+.theme-light .agent-test-result { color: #493b5c; background: #f7f3fc; }

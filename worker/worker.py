@@ -120,7 +120,7 @@ def run_job(job_id: str, payload: dict) -> None:
         if not isinstance(dependencies, dict) or "remotion" not in dependencies or "@remotion/cli" not in dependencies:
             raise ValueError("Remotion and @remotion/cli must be declared dependencies")
         root_source = (job_dir / "src" / "Root.tsx").read_text(encoding="utf-8")
-        composition_match = re.search(r'id=\\{"([A-Za-z0-9_-]+)"\\}', root_source)
+        composition_match = re.search(r'id=\{"([A-Za-z0-9_-]+)"\}', root_source)
         if not composition_match:
             raise ValueError("Could not identify a safe Remotion composition id")
         composition_id = composition_match.group(1)
@@ -201,7 +201,7 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     write_json(self, 200, job.copy())
             return
-        output_match = re.fullmatch(r"/outputs/([0-9a-f-]{36})/video\\.mp4", self.path)
+        output_match = re.fullmatch(r"/outputs/([0-9a-f-]{36})/video\.mp4", self.path)
         if output_match:
             output_path = (OUTPUT_ROOT / output_match.group(1) / "video.mp4").resolve()
             if not output_path.is_relative_to(OUTPUT_ROOT) or not output_path.is_file():

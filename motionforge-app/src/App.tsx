@@ -65,6 +65,7 @@ export default function App() {
   const [files, setFiles] = useState<File[]>([])
   const [assets, setAssets] = useState<Array<ProjectAsset & { url: string }>>([])
   const [busy, setBusy] = useState(false)
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
   const [storageStatus, setStorageStatus] = useState('جارٍ فحص حماية التخزين...')
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
@@ -243,9 +244,25 @@ export default function App() {
             <button onClick={() => setDraft('عايز أجهز فيديو من ملفات وصور عندي')}>🖼️ العمل على ملفات وصور</button>
           </div>
         </div> : <div className="chat-thread">
-          {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>
-            {m.text && <MarkdownMessage text={m.text} />}
-            {m.files?.length ? <div className="bubble-files">📎 {m.files.join('، ')}</div> : null}
+          {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'message-group user-message-group' : 'message-group assistant-message-group'}>
+            <div className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>
+              {m.text && <MarkdownMessage text={m.text} />}
+              {m.files?.length ? <div className="bubble-files">📎 {m.files.join('، ')}</div> : null}
+            </div>
+            <div className="message-tools">
+              <button type="button" className="message-copy-button" onClick={async () => {
+                const content = [m.text, ...(m.files?.length ? [`المرفقات: ${m.files.join('، ')}`] : [])].filter(Boolean).join('\n');
+                try {
+                  await navigator.clipboard.writeText(content);
+                  setCopiedMessageId(m.id);
+                  window.setTimeout(() => setCopiedMessageId(current => current === m.id ? null : current), 1600);
+                } catch {
+                  setNotice('تعذر النسخ تلقائياً. حاول تحديد النص ونسخه يدوياً.');
+                }
+              }} aria-label="نسخ الرسالة" title="نسخ الرسالة">
+                {copiedMessageId === m.id ? '✓ تم النسخ' : 'نسخ'}
+              </button>
+            </div>
           </article>)}
           {busy && <article className="bubble assistant-bubble typing-bubble"><p>بفكر في طلبك وبجهز الرد... <span className="typing-dots">•••</span></p></article>}
           {notice && <div className="chat-notice">{notice}</div>}

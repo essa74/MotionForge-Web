@@ -64,8 +64,10 @@ def safe_relative_path(raw: str) -> Path:
     path = Path(raw)
     if path.is_absolute() or any(part in ("", ".", "..") or part.startswith(".") for part in path.parts):
         raise ValueError("Unsafe file path")
+    if len(path.parts) == 1 and path.name in ("package.json", "tsconfig.json", "README.md"):
+        return path
     if path.parts[0] not in ("src", "public"):
-        raise ValueError("Only src/ and public/ files are accepted")
+        raise ValueError("Only project config files, src/ and public/ files are accepted")
     if path.suffix.lower() not in (".tsx", ".ts", ".jsx", ".js", ".json", ".css", ".svg", ".png", ".jpg", ".jpeg", ".webp", ".mp3", ".wav", ".mp4"):
         raise ValueError("File extension is not allowed")
     return path

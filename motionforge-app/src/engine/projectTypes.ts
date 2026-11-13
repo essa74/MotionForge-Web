@@ -19,7 +19,7 @@ export type ProjectCategory =
                           | 'completed'
                             | 'error';
 
-                            export type AssetType = 'audio' | 'image' | 'video' | 'logo';
+                            export type AssetType = 'audio' | 'image' | 'video' | 'logo' | 'document';
 
                             export type LayerType =
                               | 'text'

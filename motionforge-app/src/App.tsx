@@ -94,6 +94,10 @@ export default function App() {
   const [historySearch, setHistorySearch] = useState('')
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('essa_studio_pinned_chats') || '[]') } catch { return [] } })
   const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('essa_studio_theme') === 'light' ? 'light' : 'dark')
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<VideoProject | null>(null)
+  const [renameTarget, setRenameTarget] = useState<VideoProject | null>(null)
+  const [renameDraft, setRenameDraft] = useState('')
   const picker = useRef<HTMLInputElement>(null)
   const bottom = useRef<HTMLDivElement>(null)
 
@@ -270,19 +274,24 @@ export default function App() {
     })
   }
   function renameProject(item: VideoProject) {
-    const name = window.prompt('اكتب الاسم الجديد للمحادثة:', item.name)
-    if (!name?.trim()) return
-    const updated = updateProject(item.id, { name: name.trim().slice(0, 70) })
-    if (updated) { setProjects(getAllProjects()); if (project?.id === item.id) setProject(updated) }
+    setRenameTarget(item)
+    setRenameDraft(item.name)
+    setOpenMenuId(null)
+  }
+  function saveProjectName() {
+    if (!renameTarget || !renameDraft.trim()) return
+    const updated = updateProject(renameTarget.id, { name: renameDraft.trim().slice(0, 70) })
+    if (updated) { setProjects(getAllProjects()); if (project?.id === renameTarget.id) setProject(updated) }
+    setRenameTarget(null)
   }
   async function removeProject(item: VideoProject) {
-    if (!window.confirm('هل تريد حذف هذه المحادثة نهائيًا؟')) return
     deleteProject(item.id)
     localStorage.removeItem(chatKey(item.id))
     try { await deleteProjectFiles(item.id) } catch { /* keep deletion completed */ }
     setPinnedIds(current => { const next = current.filter(id => id !== item.id); localStorage.setItem('essa_studio_pinned_chats', JSON.stringify(next)); return next })
     setProjects(getAllProjects())
     if (project?.id === item.id) newChat()
+    setConfirmDelete(null)
   }
   function toggleTheme() {
     setTheme(current => { const next = current === 'dark' ? 'light' : 'dark'; localStorage.setItem('essa_studio_theme', next); return next })
@@ -293,7 +302,7 @@ export default function App() {
 
   return <main className={`chat-app ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} dir="rtl">
     <header className="chat-top">
-      <button className="theme-toggle" onClick={toggleTheme} aria-label="تغيير المظهر" title="تغيير المظهر">{theme === 'dark' ? '☀' : '☾'}</button>
+      <button className="header-new-chat" onClick={newChat} aria-label="محادثة جديدة" title="محادثة جديدة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
       <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
       <div className="chat-brand"><span className="chat-logo">E</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
     </header>
@@ -386,14 +395,18 @@ export default function App() {
               <span className="history-chat-icon">{pinnedIds.includes(p.id) ? '★' : '◷'}</span>
               <span className="history-chat-copy"><b>{p.name}</b><small>{new Date(p.updatedAt).toLocaleDateString('ar-EG')}</small></span>
             </button>
-            <span className="history-actions">
-              <button type="button" title="تثبيت أو إلغاء التثبيت" onClick={event => { event.stopPropagation(); togglePin(p.id) }}>{pinnedIds.includes(p.id) ? '★' : '☆'}</button>
-              <button type="button" title="تعديل الاسم" onClick={event => { event.stopPropagation(); renameProject(p) }}>✎</button>
-              <button type="button" title="حذف المحادثة" onClick={event => { event.stopPropagation(); void removeProject(p) }}>×</button>
+            <span className="history-menu-wrap">
+              <button type="button" className="history-menu-trigger" aria-label="خيارات المحادثة" title="خيارات المحادثة" onClick={event => { event.stopPropagation(); setOpenMenuId(openMenuId === p.id ? null : p.id) }}>•••</button>
+              {openMenuId === p.id && <span className="history-menu">
+                <button type="button" onClick={event => { event.stopPropagation(); togglePin(p.id); setOpenMenuId(null) }}>{pinnedIds.includes(p.id) ? 'إلغاء التثبيت' : 'تثبيت المحادثة'} <span>{pinnedIds.includes(p.id) ? '★' : '☆'}</span></button>
+                <button type="button" onClick={event => { event.stopPropagation(); renameProject(p) }}>تعديل الاسم <span>✎</span></button>
+                <button type="button" className="history-delete-action" onClick={event => { event.stopPropagation(); setConfirmDelete(p); setOpenMenuId(null) }}>حذف المحادثة <span>⌫</span></button>
+              </span>}
             </span>
           </div>) : <p className="history-empty">{historySearch ? 'لا توجد محادثات مطابقة.' : 'محادثاتك الجديدة هتظهر هنا.'}</p>}
         </div>
         <div className="sidebar-bottom">
+          <button className="sidebar-theme-setting" onClick={toggleTheme}><span className="sidebar-theme-icon">{theme === 'dark' ? '☀' : '☾'}</span><span>المظهر</span><b>{theme === 'dark' ? 'داكن' : 'فاتح'}</b></button>
           {authUser ? <>
             <div className="sidebar-profile">
               {authUser.avatar_url
@@ -406,6 +419,21 @@ export default function App() {
         </div>
       </aside>
       {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة" />}
+      {confirmDelete && <div className="dialog-backdrop" role="presentation" onClick={() => setConfirmDelete(null)}>
+        <section className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" onClick={event => event.stopPropagation()}>
+          <div className="dialog-icon">⌫</div>
+          <h2 id="delete-dialog-title">حذف المحادثة؟</h2>
+          <p>هل تريد حذف «{confirmDelete.name}» نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.</p>
+          <div className="dialog-actions"><button className="dialog-cancel" onClick={() => setConfirmDelete(null)}>إلغاء</button><button className="dialog-confirm-delete" onClick={() => void removeProject(confirmDelete)}>حذف المحادثة</button></div>
+        </section>
+      </div>}
+      {renameTarget && <div className="dialog-backdrop" role="presentation" onClick={() => setRenameTarget(null)}>
+        <section className="app-dialog rename-dialog" role="dialog" aria-modal="true" aria-labelledby="rename-dialog-title" onClick={event => event.stopPropagation()}>
+          <h2 id="rename-dialog-title">تعديل اسم المحادثة</h2>
+          <input value={renameDraft} maxLength={70} onChange={event => setRenameDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') saveProjectName() }} autoFocus />
+          <div className="dialog-actions"><button className="dialog-cancel" onClick={() => setRenameTarget(null)}>إلغاء</button><button className="dialog-confirm" onClick={saveProjectName} disabled={!renameDraft.trim()}>حفظ</button></div>
+        </section>
+      </div>}
     </div>
 
   </main>

@@ -289,10 +289,10 @@ export default function App() {
                 const id = typeof file === 'string' ? '' : file.id
                 const asset = assets.find(item => item.id === id || item.name === name)
                 const mime = typeof file === 'string' ? (asset?.mimeType || '') : file.mimeType
-                const isImage = mime.startsWith('image/') || asset?.type === 'image'
-                const isVideo = mime.startsWith('video/') || asset?.type === 'video'
-                if (isImage && asset?.url) return <a className="attachment-image-link" href={asset.url} target="_blank" rel="noreferrer" key={id || name} aria-label="عرض الصورة المرفقة"><img className="attachment-image-preview" src={asset.url} alt="الصورة المرفقة" /></a>
-                if (isVideo && asset?.url) return <div className="attachment-video-preview" key={id || name}><video src={asset.url} controls preload="metadata" /></div>
+                const isImage = mime.startsWith('image/') || asset?.type === 'image' || /\\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(name)
+                const isVideo = mime.startsWith('video/') || asset?.type === 'video' || /\\.(mp4|webm|mov|m4v)$/i.test(name)
+                if (isImage) return asset?.url ? <a className="attachment-image-link" href={asset.url} target="_blank" rel="noreferrer" key={id || name} aria-label="عرض الصورة المرفقة"><img className="attachment-image-preview" src={asset.url} alt="الصورة المرفقة" /></a> : null
+                if (isVideo) return asset?.url ? <div className="attachment-video-preview" key={id || name}><video src={asset.url} controls preload="metadata" /></div> : null
                 return <span className="bubble-file-chip" key={id || `${name}-${index}`}>📎 {name}</span>
               })}</div> : null}
             </div>

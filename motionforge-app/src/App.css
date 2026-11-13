@@ -1072,3 +1072,13 @@ body{background:#212121!important;color:#ececec}
  .user-bubble{max-width:92%!important;padding:12px 16px!important;border-radius:19px!important}
  .assistant-bubble{padding:2px 3px 12px!important}
 }
+
+/* Copy action below each chat message */
+.message-group{display:flex;flex-direction:column;gap:5px;max-width:100%;min-width:0}
+.user-message-group{align-items:flex-start;max-width:min(88%,680px);margin-right:auto}
+.assistant-message-group{align-items:flex-start;width:100%}
+.message-tools{display:flex;align-items:center;min-height:27px;padding:0 5px}
+.message-copy-button{display:inline-flex;align-items:center;gap:5px;border:0;background:transparent;color:#999;font:inherit;font-size:12px;padding:5px 8px;border-radius:8px;cursor:pointer;transition:background .15s,color .15s}
+.message-copy-button:hover{background:#343434;color:#eee}
+.message-copy-button:active{transform:scale(.97)}
+@media(max-width:700px){.user-message-group{max-width:92%}.message-copy-button{font-size:12px;padding:6px 8px}}

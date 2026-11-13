@@ -116,9 +116,14 @@ def run_job(job_id: str, payload: dict) -> None:
                 raise ValueError("Missing required file: " + name)
 
         package = json.loads((job_dir / "package.json").read_text(encoding="utf-8"))
-        scripts = package.get("scripts", {})
-        if not isinstance(scripts, dict) or "render" not in scripts:
-            raise ValueError("A render script is required in package.json")
+        dependencies = package.get("dependencies", {})
+        if not isinstance(dependencies, dict) or "remotion" not in dependencies or "@remotion/cli" not in dependencies:
+            raise ValueError("Remotion and @remotion/cli must be declared dependencies")
+        root_source = (job_dir / "src" / "Root.tsx").read_text(encoding="utf-8")
+        composition_match = re.search(r'id=\\{"([A-Za-z0-9_-]+)"\\}', root_source)
+        if not composition_match:
+            raise ValueError("Could not identify a safe Remotion composition id")
+        composition_id = composition_match.group(1)
 
         # The worker runs only its own fixed install and render commands.
         # Project code is still executable code: keep this service isolated,
@@ -141,7 +146,8 @@ def run_job(job_id: str, payload: dict) -> None:
 
         output_file = out_dir / "video.mp4"
         render = subprocess.run(
-            ["npm", "run", "render", "--", "--codec=h264", "--log=error"],
+            ["npx", "--no-install", "remotion", "render", "src/index.ts", composition_id,
+             "out/video.mp4", "--codec=h264", "--log=error"],
             cwd=job_dir, capture_output=True, text=True,
             timeout=MAX_RENDER_SECONDS, check=False,
             env={**os.environ, "CI": "1"},

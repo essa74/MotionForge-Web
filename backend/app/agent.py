@@ -192,7 +192,7 @@ async def list_workspace_files(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = await _hydrateawait _hydrate_workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     files = []
     for item in root.rglob("*"):
         if item.is_file() and not item.is_symlink() and item.name != "workspace.json":

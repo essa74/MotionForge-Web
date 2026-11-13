@@ -94,6 +94,19 @@ async def chat_reply(
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1800},
     }
 
+    # Use Gemini's built-in Google Search grounding for research-heavy requests.
+    research_text = " ".join(turn.content for turn in payload.messages[-6:]).lower()
+    research_terms = (
+        "تاريخ", "تاريخي", "أثري", "أثرية", "مصدر", "مصادر", "مراجع",
+        "بحث", "تحقق", "علمي", "أكاديمي", "دراسة", "حفائر", "بردية",
+        "archaeology", "historical", "history", "sources", "references",
+        "research", "scientific", "academic"
+    )
+    use_google_search = any(term in research_text for term in research_terms)
+    if use_google_search:
+        body["tools"] = [{"google_search": {}}]
+        body["generationConfig"]["temperature"] = 1.0
+
     # Retry temporary capacity errors, then try a lighter model as a fallback.
     models = [settings.gemini_model]
     if FALLBACK_MODEL not in models:
@@ -146,7 +159,31 @@ async def chat_reply(
                     ).strip()
                     if not answer:
                         raise HTTPException(status_code=502, detail="وصل رد فارغ من نموذج الذكاء الاصطناعي.")
-                    return {"reply": answer, "model": model}
+                    grounding = (
+                        data.get("candidates", [{}])[0].get("groundingMetadata", {})
+                        if data.get("candidates") else {}
+                    )
+                    chunks = grounding.get("groundingChunks", [])
+                    sources = []
+                    seen_urls = set()
+                    for chunk in chunks:
+                        web_source = chunk.get("web", {})
+                        uri = web_source.get("uri")
+                        title = web_source.get("title") or uri
+                        if uri and uri not in seen_urls:
+                            seen_urls.add(uri)
+                            sources.append((title, uri))
+                    if sources:
+                        answer += "\\n\\n### المصادر التي استخدمها البحث\\n"
+                        answer += "\\n".join(
+                            f"- [{title}]({uri})" for title, uri in sources[:8]
+                        )
+                    return {
+                        "reply": answer,
+                        "model": model,
+                        "grounded": bool(sources),
+                        "sources": [{"title": title, "url": uri} for title, uri in sources[:8]],
+                    }
 
                 # If the primary model is unavailable, continue with the fallback.
                 continue

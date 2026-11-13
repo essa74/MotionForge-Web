@@ -9,6 +9,7 @@ from app.auth import router as auth_router
 from app.chat import router as chat_router
 from app.config import settings
 from app.db import engine
+from app.workspace_storage import router as workspace_storage_router
 
 
 @asynccontextmanager
@@ -38,6 +39,7 @@ if settings.session_secret:
 app.include_router(auth_router, prefix=settings.api_v1_prefix)
 app.include_router(agent_router, prefix=settings.api_v1_prefix)
 app.include_router(chat_router, prefix=settings.api_v1_prefix)
+app.include_router(workspace_storage_router, prefix=settings.api_v1_prefix)
 
 
 @app.get("/health", tags=["system"])

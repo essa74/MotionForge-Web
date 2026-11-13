@@ -399,7 +399,7 @@ export const Root: React.FC = () => (
     fps={{{payload.fps}}}
     width={{{payload.width}}}
     height={{{payload.height}}}
-    defaultProps={{{{title: {json.dumps(payload.title, ensure_ascii=False)}}}}}
+    defaultProps={{title: {json.dumps(payload.title, ensure_ascii=False)}}}
   />
 );
 """,

@@ -1082,3 +1082,10 @@ body{background:#212121!important;color:#ececec}
 .message-copy-button:hover{background:#343434;color:#eee}
 .message-copy-button:active{transform:scale(.97)}
 @media(max-width:700px){.user-message-group{max-width:92%}.message-copy-button{font-size:12px;padding:6px 8px}}
+
+/* Compact icon-only copy control, matching ChatGPT message actions */
+.message-tools{min-height:28px;padding:0 3px}
+.message-copy-button{width:30px;height:30px;display:grid;place-items:center;padding:0;border:0;border-radius:8px;background:transparent;color:#9b9b9b;font-size:0}
+.message-copy-button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.message-copy-button:hover{background:#3a3a3a;color:#f1f1f1}
+.message-copy-button:active{transform:scale(.94)}

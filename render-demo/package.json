@@ -1,0 +1,18 @@
+{
+  "name": "essa-studio-first-render",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "render": "remotion render src/index.ts EssaStudioIntro out/essa-studio-intro.mp4 --codec=h264 --crf=20 --pixel-format=yuv420p"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.542",
+    "remotion": "4.0.542",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.7.2"
+  }
+}

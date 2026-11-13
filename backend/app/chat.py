@@ -12,6 +12,21 @@ from app.config import settings
 
 router = APIRouter(prefix="/chat", tags=["AI chat"])
 FALLBACK_MODEL = "gemini-3.5-flash-lite"
+ADVANCED_MODEL = "gemini-3.8-flash"
+
+
+def _needs_advanced_model(messages: list[ChatTurn]) -> bool:
+    """Use the scarce advanced-model quota only for substantial coding work."""
+    latest = next((m.content.lower() for m in reversed(messages) if m.role == "user"), "")
+    signals = (
+        "اكتب كود", "اكتبلي كود", "برمج", "تطوير تطبيق", "تطوير موقع",
+        "مشروع كامل", "ملفات المشروع", "راجع الكود", "حلل الكود",
+        "debug", "refactor", "architecture", "full project", "codebase",
+        "multi-file", "multiple files", "build an app", "build a website",
+        "implement", "repository", "remotion", "react", "fastapi",
+        "flask", "flutter", "next.js", "typescript", "python",
+    )
+    return any(signal in latest for signal in signals)
 
 
 class ChatTurn(BaseModel):
@@ -115,25 +130,36 @@ async def chat_reply(
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 8192},
     }
 
-    # Retry temporary capacity errors, then try a lighter model as a fallback.
-    models = [settings.gemini_model]
-    if FALLBACK_MODEL not in models:
-        models.append(FALLBACK_MODEL)
-
+    # Keep the high-quota Lite model for everyday chat. Reserve 3.8 Flash
+    # for substantial coding/project work, and automatically fail over on 429.
+    advanced_task = _needs_advanced_model(payload.messages)
+    models = (
+        [ADVANCED_MODEL, settings.gemini_model, FALLBACK_MODEL]
+        if advanced_task
+        else [settings.gemini_model, ADVANCED_MODEL, FALLBACK_MODEL]
+    )
+    models = list(dict.fromkeys(model for model in models if model))
     last_detail = "خدمة Gemini مشغولة حالياً. حاول مرة أخرى بعد قليل."
+    quota_exhausted = False
     try:
-        async with httpx.AsyncClient(timeout=12.0) as client:
+        async with httpx.AsyncClient(timeout=120.0) as client:
             for model_index, model in enumerate(models):
                 for attempt in range(2):
                     url = (
                         "https://generativelanguage.googleapis.com/v1beta/models/"
                         f"{model}:generateContent"
                     )
+                    request_body = dict(body)
+                    request_body["generationConfig"] = dict(body["generationConfig"])
+                    if model == ADVANCED_MODEL:
+                        # Gemini 3.8 uses thinking levels rather than legacy sampling controls.
+                        request_body["generationConfig"].pop("temperature", None)
+                        request_body["generationConfig"]["maxOutputTokens"] = 16384
                     try:
                         response = await client.post(
                             url,
                             params={"key": settings.gemini_api_key},
-                            json=body,
+                            json=request_body,
                         )
                     except httpx.TimeoutException:
                         last_detail = "النموذج استغرق وقتاً أطول من المهلة المحددة."
@@ -146,6 +172,10 @@ async def chat_reply(
                             await asyncio.sleep(1.5)
                             continue
                         break
+                    if response.status_code == 429:
+                        quota_exhausted = True
+                        last_detail = "وصل هذا النموذج إلى حد الاستخدام المتاح حالياً."
+                        break
                     if response.status_code >= 400:
                         detail = "تعذر على Gemini معالجة الطلب حالياً."
                         try:
@@ -153,7 +183,7 @@ async def chat_reply(
                         except ValueError:
                             pass
                         # A model-specific availability/access error can move to fallback.
-                        if model_index == 0 and response.status_code in (404, 429):
+                        if response.status_code == 404:
                             last_detail = detail[:500]
                             break
                         raise HTTPException(status_code=502, detail=detail[:500])
@@ -176,6 +206,11 @@ async def chat_reply(
                 # If the primary model is unavailable, continue with the fallback.
                 continue
 
+        if quota_exhausted:
+            raise HTTPException(
+                status_code=429,
+                detail="استهلكت حصة النماذج المتاحة حالياً. جرّب لاحقاً بعد تجدد الحصة اليومية.",
+            )
         raise HTTPException(
             status_code=503,
             detail=f"{last_detail} حاول مرة أخرى بعد دقيقة.",

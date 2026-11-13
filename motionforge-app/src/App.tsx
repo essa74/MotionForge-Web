@@ -376,6 +376,7 @@ export default function App() {
   function toggleTheme() {
     setTheme(current => { const next = current === 'dark' ? 'light' : 'dark'; localStorage.setItem('essa_studio_theme', next); return next })
   }
+  const diagnosticsMode = new URLSearchParams(window.location.search).get('diagnostics') === '1'
   const visibleProjects = [...projects]
     .sort((a, b) => Number(pinnedIds.includes(b.id)) - Number(pinnedIds.includes(a.id)) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .filter(item => item.name.toLocaleLowerCase('ar').includes(historySearch.trim().toLocaleLowerCase('ar')))
@@ -457,6 +458,7 @@ export default function App() {
       <aside className={`chat-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-heading"><b>مساحة العمل</b><button onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة">×</button></div>
         <button className="sidebar-new-chat" onClick={newChat}>＋ محادثة جديدة</button>
+        {diagnosticsMode && <>
         <button className="agent-test-button" onClick={() => void runPersistentStorageTest()} disabled={agentBusy || !authUser}>
           {agentBusy ? 'جارٍ اختبار الحفظ...' : '💾 اختبار الحفظ الدائم'}
         </button>
@@ -464,6 +466,7 @@ export default function App() {
           {agentBusy ? 'جارٍ اختبار المحرك...' : '⚙ اختبار محرك الإنتاج'}
         </button>
         {agentResult && <div className="agent-test-result" role="status">{agentResult}</div>}
+        </>}
         <label className="history-search">
           <span>⌕</span>
           <input value={historySearch} onChange={event => setHistorySearch(event.target.value)} placeholder="ابحث في المحادثات" />

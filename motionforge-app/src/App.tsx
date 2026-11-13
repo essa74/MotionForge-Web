@@ -322,7 +322,7 @@ export default function App() {
             const preview = pendingPreviews.find(item => item.file === f)
             return <span className="pending-file-item" key={`${f.name}-${i}`}>
               {preview && f.type.startsWith('image/') ? <img src={preview.url} alt={f.name} /> : preview && f.type.startsWith('video/') ? <video src={preview.url} muted /> : <span className="pending-file-icon">{f.type.startsWith('audio/') ? '♫' : '📄'}</span>}
-              <span className="pending-file-name">{f.name}</span>
+              {!f.type.startsWith('image/') && !f.type.startsWith('video/') && <span className="pending-file-name">{f.name}</span>}
               <button type="button" aria-label={`إزالة ${f.name}`} onClick={() => setFiles(old => old.filter((_, n) => n !== i))}>×</button>
             </span>
           })}</div>}

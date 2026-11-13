@@ -15,9 +15,9 @@ FALLBACK_MODEL = "gemini-3.5-flash-lite"
 ADVANCED_MODEL = "gemini-3.8-flash"
 
 
-def _needs_advanced_model(messages: list[ChatTurn]) -> bool:
+def _needs_advanced_model(messages: list["ChatTurn"]) -> bool:
     """Use the scarce advanced-model quota only for substantial coding work."""
-    latest = next((m.content.lower() for m in reversed(messages) if m.role == "user"), "")
+    recent_user_text = " ".join(m.content.lower() for m in messages if m.role == "user")[-18000:]
     signals = (
         "اكتب كود", "اكتبلي كود", "برمج", "تطوير تطبيق", "تطوير موقع",
         "مشروع كامل", "ملفات المشروع", "راجع الكود", "حلل الكود",
@@ -26,7 +26,7 @@ def _needs_advanced_model(messages: list[ChatTurn]) -> bool:
         "implement", "repository", "remotion", "react", "fastapi",
         "flask", "flutter", "next.js", "typescript", "python",
     )
-    return any(signal in latest for signal in signals)
+    return any(signal in recent_user_text for signal in signals)
 
 
 class ChatTurn(BaseModel):

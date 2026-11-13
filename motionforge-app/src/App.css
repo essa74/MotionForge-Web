@@ -1203,3 +1203,18 @@ body{background:#212121!important;color:#ececec}
  .history-menu{left:0;right:auto}
  .app-dialog{padding:21px;border-radius:18px}
 }
+
+
+/* Header new-chat shortcut sits at the far left; welcome stays minimal */
+.chat-top{position:relative}
+.header-new-chat{position:absolute;left:0;right:auto;top:50%;transform:translateY(-50%);z-index:2}
+.chat-brand{margin-inline-start:auto}
+.chat-welcome{gap:0}
+.chat-welcome h1{margin:0 0 10px}
+.chat-welcome p{margin:0}
+@media(max-width:700px){
+ .chat-top{justify-content:flex-start;padding-left:46px}
+ .chat-brand{margin-inline-start:auto}
+ .header-new-chat{left:0;right:auto}
+ .sidebar-toggle{margin-inline-start:0}
+}

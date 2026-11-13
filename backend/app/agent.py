@@ -12,8 +12,12 @@ from pathlib import Path, PurePosixPath
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import _authenticated_user_id
+from app.db import SessionLocal
+from app.models import AgentWorkspace, AgentWorkspaceFile
 
 router = APIRouter(prefix="/agent", tags=["Agent workspace"])
 MAX_FILE_BYTES = 1_000_000
@@ -45,6 +49,92 @@ def _workspace(user_id: str, workspace_id: str) -> Path:
     if not root.is_dir():
         raise HTTPException(status_code=404, detail="مساحة العمل غير موجودة.")
     return root
+
+
+async def _hydrate_workspace(user_id: str, workspace_id: str) -> Path:
+    """Rebuild the temporary working directory from durable database records."""
+    try:
+        owner_id = uuid.UUID(user_id)
+        safe_id = uuid.UUID(workspace_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="مساحة العمل غير موجودة.") from None
+
+    async with SessionLocal() as db:
+        result = await db.execute(
+            select(AgentWorkspace).where(
+                AgentWorkspace.id == safe_id,
+                AgentWorkspace.owner_id == owner_id,
+            )
+        )
+        workspace = result.scalar_one_or_none()
+        if workspace is None:
+            raise HTTPException(status_code=404, detail="مساحة العمل غير موجودة.")
+        files_result = await db.execute(
+            select(AgentWorkspaceFile).where(AgentWorkspaceFile.workspace_id == safe_id)
+        )
+        files = files_result.scalars().all()
+        root = _user_root(user_id) / str(safe_id)
+        root.mkdir(parents=True, exist_ok=True)
+        (root / "workspace.json").write_text(
+            json.dumps({"id": str(safe_id), "name": workspace.name}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        for record in files:
+            target = _safe_file_path(root, record.path)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(record.content, encoding="utf-8")
+    return root
+
+
+async def _persist_workspace(user_id: str, workspace_id: str, root: Path) -> None:
+    """Persist text files from the working directory; workspace ownership is always checked."""
+    try:
+        owner_id = uuid.UUID(user_id)
+        safe_id = uuid.UUID(workspace_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="مساحة العمل غير موجودة.") from None
+
+    async with SessionLocal() as db:
+        result = await db.execute(
+            select(AgentWorkspace).where(
+                AgentWorkspace.id == safe_id,
+                AgentWorkspace.owner_id == owner_id,
+            )
+        )
+        workspace = result.scalar_one_or_none()
+        if workspace is None:
+            raise HTTPException(status_code=404, detail="مساحة العمل غير موجودة.")
+        for item in root.rglob("*"):
+            if not item.is_file() or item.is_symlink() or item.name == "workspace.json":
+                continue
+            relative = item.relative_to(root).as_posix()
+            size = item.stat().st_size
+            if size > MAX_FILE_BYTES:
+                raise HTTPException(status_code=413, detail=f"الملف {relative} أكبر من الحد المسموح.")
+            try:
+                content = item.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            record_result = await db.execute(
+                select(AgentWorkspaceFile).where(
+                    AgentWorkspaceFile.workspace_id == safe_id,
+                    AgentWorkspaceFile.path == relative,
+                )
+            )
+            record = record_result.scalar_one_or_none()
+            if record is None:
+                count_result = await db.execute(
+                    select(AgentWorkspaceFile).where(AgentWorkspaceFile.workspace_id == safe_id)
+                )
+                if len(count_result.scalars().all()) >= MAX_FILES:
+                    raise HTTPException(status_code=413, detail="وصل المشروع إلى الحد الأقصى لعدد الملفات.")
+                db.add(AgentWorkspaceFile(
+                    workspace_id=safe_id, path=relative, content=content, size_bytes=size
+                ))
+            else:
+                record.content = content
+                record.size_bytes = size
+        await db.commit()
 
 
 def _safe_file_path(root: Path, relative_path: str) -> Path:
@@ -85,11 +175,14 @@ async def create_workspace(
 ):
     user_id = _require_user(request, authorization)
     workspace_id = str(uuid.uuid4())
+    async with SessionLocal() as db:
+        db.add(AgentWorkspace(id=uuid.UUID(workspace_id), owner_id=uuid.UUID(user_id), name=payload.name))
+        await db.commit()
     root = _user_root(user_id) / workspace_id
     root.mkdir(parents=True, exist_ok=False)
     metadata = {"id": workspace_id, "name": payload.name}
     (root / "workspace.json").write_text(json.dumps(metadata, ensure_ascii=False), encoding="utf-8")
-    return {"workspace_id": workspace_id, "name": payload.name, "status": "ready"}
+    return {"workspace_id": workspace_id, "name": payload.name, "status": "ready", "storage": "database"}
 
 
 @router.get("/workspaces/{workspace_id}/files")
@@ -99,7 +192,7 @@ async def list_workspace_files(
     authorization: str | None = Header(default=None),
 ):
     user_id = _require_user(request, authorization)
-    root = _workspace(user_id, workspace_id)
+    root = await _hydrate_workspace(user_id, workspace_id)
     files = []
     for item in root.rglob("*"):
         if item.is_file() and not item.is_symlink() and item.name != "workspace.json":
@@ -133,7 +226,8 @@ async def write_workspace_file(
     temp = target.with_name(target.name + ".tmp")
     temp.write_bytes(encoded)
     temp.replace(target)
-    return {"saved": True, "path": payload.path, "bytes": len(encoded)}
+    await _persist_workspace(user_id, workspace_id, root)
+    return {"saved": True, "path": payload.path, "bytes": len(encoded), "storage": "database"}
 
 
 @router.get("/workspaces/{workspace_id}/files/{file_path:path}")
@@ -297,6 +391,7 @@ async def create_video_plan(
     (plans_dir / f"{plan_id}.json").write_text(
         json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8"
     )
+    await _persist_workspace(user_id, workspace_id, root)
     return plan
 
 
@@ -488,6 +583,7 @@ export const LogoAnimation: React.FC<Props> = ({title}) => {
         temp.replace(target)
         written.append({"path": "remotion/" + relative, "bytes": len(encoded)})
 
+    await _persist_workspace(user_id, workspace_id, root)
     return {
         "created": True,
         "project_path": "remotion/",

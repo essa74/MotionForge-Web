@@ -1,5 +1,7 @@
 from typing import Literal
 import asyncio
+import base64
+import binascii
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -17,8 +19,15 @@ class ChatTurn(BaseModel):
     content: str = Field(min_length=1, max_length=12000)
 
 
+class ImageAttachment(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    mime_type: str = Field(pattern=r"^image/(png|jpeg|webp|gif)$")
+    data: str = Field(min_length=1, max_length=12_000_000)
+
+
 class ChatRequest(BaseModel):
     messages: list[ChatTurn] = Field(min_length=1, max_length=24)
+    attachments: list[ImageAttachment] = Field(default_factory=list, max_length=6)
 
 
 @router.post("/reply")
@@ -41,6 +50,18 @@ async def chat_reply(
         }
         for turn in payload.messages
     ]
+    if payload.attachments:
+        if not contents or contents[-1]["role"] != "user":
+            raise HTTPException(status_code=400, detail="أرفق الصور مع رسالة جديدة من المستخدم.")
+        for attachment in payload.attachments:
+            try:
+                image_bytes = base64.b64decode(attachment.data, validate=True)
+            except (binascii.Error, ValueError):
+                raise HTTPException(status_code=400, detail=f"ملف الصورة {attachment.name} غير صالح.") from None
+            if len(image_bytes) > 8 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail=f"حجم الصورة {attachment.name} أكبر من 8 ميجابايت.")
+            contents[-1]["parts"].append({"inline_data": {"mime_type": attachment.mime_type, "data": attachment.data}})
+
     body = {
         "systemInstruction": {
             "parts": [{

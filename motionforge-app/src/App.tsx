@@ -244,11 +244,10 @@ export default function App() {
           </div>
         </div> : <div className="chat-thread">
           {messages.map(m => <article key={m.id} className={m.role === 'user' ? 'bubble user-bubble' : 'bubble assistant-bubble'}>
-            <small>{m.role === 'user' ? 'أنت' : 'EssaStudio AI'}</small>
             {m.text && <MarkdownMessage text={m.text} />}
             {m.files?.length ? <div className="bubble-files">📎 {m.files.join('، ')}</div> : null}
           </article>)}
-          {busy && <article className="bubble assistant-bubble typing-bubble"><small>EssaStudio AI</small><p>بفكر في طلبك وبجهز الرد... <span className="typing-dots">•••</span></p></article>}
+          {busy && <article className="bubble assistant-bubble typing-bubble"><p>بفكر في طلبك وبجهز الرد... <span className="typing-dots">•••</span></p></article>}
           {notice && <div className="chat-notice">{notice}</div>}
           {assets.length > 0 && <div className="asset-strip">{assets.map(a => <span key={a.id}>📎 {a.name}</span>)}</div>}
           <div ref={bottom} />

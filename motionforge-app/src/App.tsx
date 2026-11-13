@@ -288,8 +288,20 @@ export default function App() {
       })
       const scaffoldData = await scaffoldResponse.json().catch(() => ({}))
       if (!scaffoldResponse.ok) throw new Error(scaffoldData.detail || 'تعذر إنشاء مشروع Remotion.')
-      setAgentResult(`نجح الاختبار! تم إنشاء مساحة العمل ومشروع Remotion وفيه ${scaffoldData.files?.length || 0} ملفات. المعرّف: ${workspaceData.workspace_id}`)
-      setNotice('محرك الإنتاج أنشأ مشروع Remotion بنجاح.')
+      setAgentResult('تم إنشاء المشروع. جارٍ فحص الملفات وإمكانات بيئة التشغيل...')
+      const preflightResponse = await fetch(`${API_BASE_URL}/api/v1/agent/workspaces/${workspaceData.workspace_id}/remotion/preflight`, {
+        method: 'POST', headers
+      })
+      const preflight = await preflightResponse.json().catch(() => ({}))
+      if (!preflightResponse.ok) throw new Error(preflight.detail || 'تعذر فحص مشروع Remotion.')
+      const runtime = preflight.runtime || {}
+      const available = ['node', 'npm', 'ffmpeg'].filter(tool => runtime[tool])
+      const missing = ['node', 'npm', 'ffmpeg'].filter(tool => !runtime[tool])
+      const runtimeText = preflight.can_render_here
+        ? 'بيئة التشغيل تحتوي Node وnpm وFFmpeg.'
+        : 'أدوات الرندر غير مكتملة على خادم API' + (missing.length ? ': ' + missing.join('، ') : '') + '. سنحتاج Worker منفصل.'
+      setAgentResult(`نجح فحص المشروع: ${preflight.checks_passed}/${preflight.checks_total} اختبار. الملفات: ${scaffoldData.files?.length || 0}. ${runtimeText} مساحة العمل: ${workspaceData.workspace_id}`)
+      setNotice('تم إنشاء مشروع Remotion وفحص ملفاته. لم يتم تشغيل الرندر بعد.')
     } catch (error) {
       const message = error instanceof Error ? error.message : 'حدث خطأ أثناء اختبار المحرك.'
       setAgentResult(message); setNotice(message)

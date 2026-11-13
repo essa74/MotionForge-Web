@@ -231,7 +231,7 @@ export default function App() {
         .filter(file => file.type.startsWith('image/'))
         .map(async file => ({ name: file.name, mime_type: file.type, data: await fileToBase64(file) })))
       const controller = new AbortController()
-      const requestTimeout = window.setTimeout(() => controller.abort(), 90000)
+      const requestTimeout = window.setTimeout(() => controller.abort(), 180000)
       let aiResponse: Response
       try {
         aiResponse = await fetch(`${API_BASE_URL}/api/v1/chat/reply`, {

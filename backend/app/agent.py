@@ -4,6 +4,7 @@ import ast
 import hashlib
 import json
 import os
+import shutil
 import uuid
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
@@ -494,3 +495,79 @@ export const LogoAnimation: React.FC<Props> = ({title}) => {
         "files": written,
         "next_step": "راجع الملفات ثم ثبّت الاعتمادات وشغّل Remotion داخل Worker معزول. لم يتم تشغيل npm أو الرندر على خادم API."
     }
+
+
+
+@router.post("/workspaces/{workspace_id}/remotion/preflight")
+async def remotion_preflight(
+    workspace_id: str,
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    """Static project checks plus runtime discovery; never executes project code."""
+    user_id = _require_user(request, authorization)
+    root = _workspace(user_id, workspace_id)
+    project = _safe_file_path(root, "remotion")
+    if not project.is_dir():
+        raise HTTPException(status_code=404, detail="مشروع Remotion غير موجود.")
+
+    checks = []
+    required = [
+        "package.json", "tsconfig.json", "src/index.ts",
+        "src/Root.tsx", "src/LogoAnimation.tsx", "README.md",
+    ]
+    for relative in required:
+        item = _safe_file_path(root, "remotion/" + relative)
+        checks.append({
+            "name": "وجود " + relative,
+            "passed": item.is_file(),
+        })
+
+    package = {}
+    package_path = _safe_file_path(root, "remotion/package.json")
+    if package_path.is_file():
+        try:
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+            checks.append({"name": "package.json صالح", "passed": isinstance(package, dict)})
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            checks.append({"name": "package.json صالح", "passed": False})
+            package = {}
+
+    dependencies = {**package.get("dependencies", {}), **package.get("devDependencies", {})}
+    scripts = package.get("scripts", {})
+    checks.extend([
+        {"name": "اعتماد Remotion موجود", "passed": "remotion" in dependencies},
+        {"name": "واجهة Remotion CLI موجودة", "passed": "@remotion/cli" in dependencies},
+        {"name": "أمر الرندر معرف", "passed": "render" in scripts},
+    ])
+
+    source_checks = [
+        ("src/index.ts", "registerRoot"),
+        ("src/Root.tsx", "Composition"),
+        ("src/LogoAnimation.tsx", "useCurrentFrame"),
+    ]
+    for relative, marker in source_checks:
+        item = _safe_file_path(root, "remotion/" + relative)
+        content = item.read_text(encoding="utf-8") if item.is_file() else ""
+        checks.append({"name": relative + " يحتوي " + marker, "passed": marker in content})
+
+    runtime = {
+        "python": shutil.which("python") or shutil.which("python3"),
+        "node": shutil.which("node"),
+        "npm": shutil.which("npm"),
+        "ffmpeg": shutil.which("ffmpeg"),
+    }
+    passed = sum(1 for check in checks if check["passed"])
+    return {
+        "workspace_id": workspace_id,
+        "project_path": "remotion/",
+        "checks_passed": passed,
+        "checks_total": len(checks),
+        "checks_failed": len(checks) - passed,
+        "checks": checks,
+        "runtime": runtime,
+        "can_render_here": bool(runtime["node"] and runtime["npm"] and runtime["ffmpeg"]),
+        "execution_performed": False,
+        "note": "الفحص ساكن فقط؛ لم يتم تشغيل npm أو أي كود من المشروع. إذا غابت أدوات Node أو FFmpeg نحتاج Worker منفصل للرندر.",
+    }
+}

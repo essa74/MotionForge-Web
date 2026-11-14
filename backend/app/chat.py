@@ -2,6 +2,8 @@ from typing import Literal
 import asyncio
 import base64
 import binascii
+import time
+from collections import defaultdict, deque
 
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request
@@ -13,6 +15,27 @@ from app.config import settings
 router = APIRouter(prefix="/chat", tags=["AI chat"])
 FALLBACK_MODEL = "gemini-3.5-flash-lite"
 ADVANCED_MODEL = "gemini-3.8-flash"
+
+
+# Simple in-memory per-user limiter (single API instance). Protects the shared Gemini quota.
+RATE_LIMIT_REQUESTS = 20
+RATE_LIMIT_WINDOW_SECONDS = 600
+_recent_requests: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _enforce_rate_limit(user_id: str) -> None:
+    now = time.monotonic()
+    window = _recent_requests[user_id]
+    while window and now - window[0] > RATE_LIMIT_WINDOW_SECONDS:
+        window.popleft()
+    if len(window) >= RATE_LIMIT_REQUESTS:
+        retry_after = int(RATE_LIMIT_WINDOW_SECONDS - (now - window[0])) + 1
+        raise HTTPException(
+            status_code=429,
+            detail="أرسلت رسائل كثيرة في وقت قصير. حاول مرة أخرى بعد قليل.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    window.append(now)
 
 
 def _needs_advanced_model(messages: list["ChatTurn"]) -> bool:
@@ -54,6 +77,7 @@ async def chat_reply(
     user_id = _authenticated_user_id(request, authorization)
     if not user_id:
         raise HTTPException(status_code=401, detail="سجّل الدخول أولاً لاستخدام المساعد.")
+    _enforce_rate_limit(user_id)
 
     if not settings.gemini_api_key:
         raise HTTPException(status_code=503, detail="مفتاح Gemini غير مضبوط على الخادم.")

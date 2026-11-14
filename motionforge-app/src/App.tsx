@@ -87,9 +87,9 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const [notice, setNotice] = useState('')
-  const [storageStatus, setStorageStatus] = useState('جارٍ فحص حماية التخزين...')
+  const [, setStorageStatus] = useState('جارٍ فحص حماية التخزين...')
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
-  const [authLoading, setAuthLoading] = useState(true)
+  const [, setAuthLoading] = useState(true)
   const [agentBusy, setAgentBusy] = useState(false)
   const [agentResult, setAgentResult] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -186,11 +186,6 @@ export default function App() {
     return () => previews.forEach(item => URL.revokeObjectURL(item.url))
   }, [files])
 
-  function saveMessages(next: ChatMessage[]) {
-    setMessages(next)
-    if (project) localStorage.setItem(chatKey(project.id), JSON.stringify(next))
-  }
-
   async function send() {
     const text = draft.trim()
     if ((!text && files.length === 0) || busy) return
@@ -209,7 +204,7 @@ export default function App() {
         type: file.type.startsWith('audio/') ? 'audio' as const : file.type.startsWith('video/') ? 'video' as const : file.type.startsWith('image/') ? 'image' as const : 'document' as const
       })))
       const messageFiles: ChatAttachment[] = saved.map((asset, index) => ({
-        id: asset.id, name: asset.name, type: asset.type, mimeType: asset.mimeType || uploadedFiles[index]?.type || 'application/octet-stream'
+        id: asset.id, name: asset.name, type: asset.type === 'logo' ? 'image' : asset.type, mimeType: asset.mimeType || uploadedFiles[index]?.type || 'application/octet-stream'
       }))
       const updated = saved.length ? updateProject(current.id, { assets: [...current.assets, ...saved] }) : current
       if (saved.length) {
@@ -246,7 +241,7 @@ export default function App() {
         body: JSON.stringify({ messages: history, attachments: imageAttachments }),
         })
       } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') throw new Error('الرد اتأخر أكثر من 90 ثانية. جرّب إرسال الرسالة مرة أخرى.')
+        if (error instanceof DOMException && error.name === 'AbortError') throw new Error('الرد اتأخر أكثر من 3 دقايق. جرّب إرسال الرسالة مرة أخرى.')
         throw new Error('حصلت مشكلة في الاتصال بالخادم. تأكد من الإنترنت وحاول مرة أخرى.')
       } finally { window.clearTimeout(requestTimeout) }
       const aiData = await aiResponse.json().catch(() => ({}))
@@ -295,7 +290,6 @@ export default function App() {
       const preflight = await preflightResponse.json().catch(() => ({}))
       if (!preflightResponse.ok) throw new Error(preflight.detail || 'تعذر فحص مشروع Remotion.')
       const runtime = preflight.runtime || {}
-      const available = ['node', 'npm', 'ffmpeg'].filter(tool => runtime[tool])
       const missing = ['node', 'npm', 'ffmpeg'].filter(tool => !runtime[tool])
       const runtimeText = preflight.can_render_here
         ? 'بيئة التشغيل تحتوي Node وnpm وFFmpeg.'

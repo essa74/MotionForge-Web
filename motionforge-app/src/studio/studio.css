@@ -12,7 +12,7 @@
 .studio-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .studio-actions button { flex: 1; }
 .studio-issues { margin: 0; padding: 0 18px 0 0; color: #e5484d; font-size: 13px; line-height: 1.7; }
-.studio-player { width: 100%; max-height: 70vh; margin: 0 auto; background: #000; border-radius: 10px; overflow: hidden; }
+.studio-player { direction: ltr; width: 100%; max-height: 70vh; margin: 0 auto; background: #000; border-radius: 10px; overflow: hidden; }
 .studio-progress { height: 10px; background: rgba(127,127,127,.25); border-radius: 99px; overflow: hidden; }
 .studio-progress i { display: block; height: 100%; background: #217346; transition: width .2s; }
 .studio-result { display: flex; flex-direction: column; gap: 8px; }

@@ -1,4 +1,4 @@
-import type {ReelSpec} from '../engine/spec';
+import type {Look, ReelSpec} from '../engine/spec';
 
 /** A subtitle line. `from` and `to` are in seconds on the voice-over timeline. */
 export type CaptionLine = {text: string; from: number; to: number};
@@ -13,4 +13,6 @@ export type ReelProps = {
   format?: 'vertical' | 'horizontal' | 'square';
   /** Scene list for the SceneReel composition. */
   spec?: ReelSpec;
+  /** Page identity (colours, handle). Without it the classic EssaXcel look is used. */
+  look?: Look;
 };

@@ -32,8 +32,13 @@ export type ExcelScene = SceneBase & {
   steps?: ExcelStep[];
 };
 
+/** The visual identity of a page (set by the template); text and logo scenes follow it. */
+export type Look = {bg: string; text: string; accent: string; handle?: string; label?: string};
+
 export type TextScene = SceneBase & {
   type: 'text';
+  /** A word or phrase of the title painted in the accent colour. */
+  highlight?: string;
   title: string;
   subtitle?: string;
   theme?: 'light' | 'dark' | 'green';

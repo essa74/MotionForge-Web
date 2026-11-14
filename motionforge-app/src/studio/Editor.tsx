@@ -8,7 +8,7 @@ import { FORMATS, type Format } from '../reels-engine/lib/theme'
 import { loadReelFonts } from './fonts'
 import { askAi, loadAi } from '../ai'
 import { buildScenePrompt, extractJson } from './scenePrompt'
-import { DEFAULT_SPEC_TEXT, saveProject, templateById, type Project } from './projects'
+import { DEFAULT_SPEC_TEXT, lookOf, saveProject, templateById, type Project } from './projects'
 import { ChatIcon, ICON } from './ui'
 import './studio.css'
 
@@ -90,7 +90,8 @@ export default function Editor({ project, onOpenAi, onBack, onOpenAssistant, onS
   const totalSeconds = spec ? (voice ? Math.min(voice.seconds, MAX_VOICE_SECONDS) + tail : specSeconds(spec)) : 0
   const frames = Math.max(1, Math.ceil(totalSeconds * FPS))
   const size = FORMATS[format]
-  const inputProps = useMemo(() => ({ spec: spec ?? DEFAULT_SPEC, voiceOver: voice?.url, logo: logo?.url }), [spec, voice, logo])
+  const look = useMemo(() => lookOf(template), [template])
+  const inputProps = useMemo(() => ({ spec: spec ?? DEFAULT_SPEC, voiceOver: voice?.url, logo: logo?.url, look }), [spec, voice, logo, look])
 
   async function pickVoice(file?: File) {
     if (!file) return setVoice(null)

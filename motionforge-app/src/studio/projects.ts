@@ -1,22 +1,31 @@
 import type { Format } from '../reels-engine/lib/theme'
 
 // A template is a personal look the user defines (name, colour, style note for Gemini). Nothing is built in except the free project.
-export type Template = { id: string; name: string; color: string; note: string }
-export const FREE_TEMPLATE: Template = { id: 'free', name: 'فيديو حر', color: '#9aa0ab', note: '' }
-export const TEMPLATE_COLORS = ['#2e9b63', '#E8B64C', '#4f8cff', '#e0627a', '#a76bff', '#e08a3c']
+export type Template = { id: string; name: string; color: string; note: string; bg?: string; handle?: string }
+export const FREE_TEMPLATE: Template = { id: 'free', name: 'فيديو حر', color: '#E8B64C', note: '', bg: '#0b0b10', handle: '' }
+export const TEMPLATE_BGS = ['#0b0b10', '#0b1330', '#111827', '#0f2a1d', '#ffffff']
+export const TEMPLATE_COLORS = ['#E8B64C', '#2e9b63', '#4f8cff', '#e0627a', '#a76bff', '#e08a3c']
 const TEMPLATES = 'essa_studio_templates'
 
 export function loadTemplates(): Template[] {
   try { return JSON.parse(localStorage.getItem(TEMPLATES) || '[]') as Template[] } catch { return [] }
 }
-export function saveTemplate(input: { id?: string; name: string; color: string; note: string }): Template {
-  const template: Template = { id: input.id || crypto.randomUUID(), name: input.name.trim() || 'قالب جديد', color: input.color, note: input.note.trim() }
+export function saveTemplate(input: { id?: string; name: string; color: string; note: string; bg?: string; handle?: string }): Template {
+  const template: Template = { id: input.id || crypto.randomUUID(), name: input.name.trim() || 'قالب جديد', color: input.color, note: input.note.trim(), bg: input.bg || TEMPLATE_BGS[0], handle: (input.handle || '').trim() }
   const rest = loadTemplates().filter(item => item.id !== template.id)
   try { localStorage.setItem(TEMPLATES, JSON.stringify([...rest, template])) } catch { /* storage full or blocked */ }
   return template
 }
 export function deleteTemplate(id: string) { try { localStorage.setItem(TEMPLATES, JSON.stringify(loadTemplates().filter(item => item.id !== id))) } catch { /* ignore */ } }
 export function templateById(id: string): Template { return loadTemplates().find(item => item.id === id) ?? FREE_TEMPLATE }
+
+/** The page identity the video engine paints text and closing scenes with. */
+export function lookOf(t: Template) {
+  const bg = t.bg || TEMPLATE_BGS[0]
+  const n = parseInt(bg.replace('#', ''), 16)
+  const light = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 150
+  return { bg, text: light ? '#0b0b10' : '#ffffff', accent: t.color, handle: t.handle || undefined }
+}
 
 export type Project = { id: string; name: string; templateId: string; updated: number; script: string; specText: string; format: Format }
 

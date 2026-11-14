@@ -37,6 +37,9 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
   const [specText, setSpecText] = useState(() => localStorage.getItem(KEY_SPEC) || JSON.stringify(DEFAULT_SPEC, null, 2))
   const [fontsReady, setFontsReady] = useState(false)
   const [asking, setAsking] = useState(false)
+  const [askSeconds, setAskSeconds] = useState(0)
+  const [attempt, setAttempt] = useState(1)
+  const askAbort = useRef<AbortController | null>(null)
   const [message, setMessage] = useState('')
   const [rendering, setRendering] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -89,26 +92,46 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
     if (!script.trim()) return setMessage('الصق السكريبت الأول.')
     const token = localStorage.getItem('essa_studio_access_token')
     if (!token) return setMessage('سجّل الدخول الأول عشان جيمناي يشتغل.')
-    setAsking(true); setMessage('')
-    const controller = new AbortController()
-    const timer = window.setTimeout(() => controller.abort(), 180000)
+    setAsking(true); setMessage(''); setAskSeconds(0); setAttempt(1)
+    const started = Date.now()
+    const tick = window.setInterval(() => setAskSeconds(Math.floor((Date.now() - started) / 1000)), 1000)
+    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format })
+    let cancelled = false
     try {
-      const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format })
-      const response = await fetch(`${apiBaseUrl}/api/v1/chat/reply`, {
-        method: 'POST', signal: controller.signal,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], attachments: [] }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.detail || 'تعذر الحصول على رد من جيمناي.')
-      const checked = validateSpec(extractJson(String(data.reply)))
-      if (!checked.spec) throw new Error(checked.errors.join(' | '))
-      setSpecText(JSON.stringify(checked.spec, null, 2)); setResult(null)
-      setMessage(checked.errors.length ? 'جهزت المشاهد مع تنبيهات: ' + checked.errors.join(' | ') : 'المشاهد جاهزة. راجعها وعاين.')
-    } catch (error) {
-      setMessage(error instanceof DOMException && error.name === 'AbortError' ? 'جيمناي اتأخر أكتر من 3 دقايق.' : (error as Error).message)
-    } finally { window.clearTimeout(timer); setAsking(false) }
+      // The free server sleeps when idle, so the first try can hang while it wakes up: retry once.
+      for (let attemptNo = 1; attemptNo <= 2; attemptNo++) {
+        setAttempt(attemptNo)
+        const controller = new AbortController(); askAbort.current = controller
+        const timer = window.setTimeout(() => controller.abort(), attemptNo === 1 ? 90000 : 120000)
+        try {
+          const response = await fetch(`${apiBaseUrl}/api/v1/chat/reply`, {
+            method: 'POST', signal: controller.signal,
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], attachments: [] }),
+          })
+          const data = await response.json().catch(() => ({}))
+          if (!response.ok) throw new Error(data.detail || 'تعذر الحصول على رد من جيمناي.')
+          const checked = validateSpec(extractJson(String(data.reply)))
+          if (!checked.spec) throw new Error(checked.errors.join(' | '))
+          setSpecText(JSON.stringify(checked.spec, null, 2)); setResult(null)
+          setMessage(checked.errors.length ? 'جهزت المشاهد مع تنبيهات: ' + checked.errors.join(' | ') : 'المشاهد جاهزة. راجعها وعاين.')
+          return
+        } catch (error) {
+          const aborted = error instanceof DOMException && error.name === 'AbortError'
+          const network = error instanceof TypeError
+          if (askAbort.current !== controller) { cancelled = true; return }
+          if ((aborted || network) && attemptNo === 1) continue
+          setMessage(aborted ? 'جيمناي ما ردش. جرّب تاني بعد دقيقة.' : (error as Error).message)
+          return
+        } finally { window.clearTimeout(timer) }
+      }
+    } finally {
+      window.clearInterval(tick); askAbort.current = null; setAsking(false)
+      if (cancelled) setMessage('اتلغى.')
+    }
   }
+
+  function cancelGemini() { const current = askAbort.current; askAbort.current = null; current?.abort() }
 
   async function copyPrompt() {
     const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format })
@@ -141,7 +164,7 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
   const issues = [...parsed.errors, ...(missingImages.length ? [`صور ناقصة، ارفعها بنفس الاسم: ${missingImages.join('، ')}`] : [])]
 
   return <section className="studio" dir="rtl">
-    <div className="studio-head"><b>استوديو الريلز</b><button onClick={onClose}>رجوع للمحادثة</button></div>
+    <div className="studio-head"><b>استوديو الريلز</b><span><button onClick={() => window.location.reload()}>تحديث</button> <button onClick={onClose}>رجوع للمحادثة</button></span></div>
 
     <div className="studio-card">
       <h3>1) المدخلات</h3>
@@ -166,9 +189,12 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
     <div className="studio-card">
       <h3>2) المشاهد</h3>
       <div className="studio-actions">
-        <button className="primary" onClick={() => void askGemini()} disabled={asking}>{asking ? 'جيمناي بيجهز…' : 'جهّز المشاهد بجيمناي'}</button>
-        <button onClick={() => void copyPrompt()}>انسخ التعليمات</button>
+        {asking
+          ? <button onClick={cancelGemini}>إلغاء ({askSeconds} ث)</button>
+          : <button className="primary" onClick={() => void askGemini()}>جهّز المشاهد بجيمناي</button>}
+        <button onClick={() => void copyPrompt()} disabled={asking}>انسخ التعليمات</button>
       </div>
+      {asking && <small>{attempt === 1 ? 'جيمناي بيجهز… لو السيرفر كان نايم ممكن ياخد لحد دقيقة.' : 'السيرفر كان بيصحى، بحاول تاني…'}</small>}
       <textarea className="mono" value={specText} onChange={event => { setSpecText(event.target.value); setResult(null) }} rows={12} spellCheck={false} />
       {issues.length > 0 && <ul className="studio-issues">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>}
       {spec && <small>{spec.scenes.length} مشاهد — مدة الفيديو {totalSeconds.toFixed(1)} ثانية</small>}

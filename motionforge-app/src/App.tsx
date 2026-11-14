@@ -3,6 +3,9 @@ import './App.css'
 import type { ProjectAsset, VideoProject } from './engine/projectTypes'
 import { createProject, getAllProjects, updateProject, deleteProject } from './engine/projectStore'
 import HistoryPanel from './History'
+import AiSettings from './studio/AiSettings'
+import { askAi, loadAi } from './ai'
+import { useBack } from './studio/back'
 import { saveProjectFiles, getProjectFiles, deleteProjectFiles } from './engine/assetStore'
 
 
@@ -98,6 +101,7 @@ export default function App() {
   const [historySearch, setHistorySearch] = useState('')
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('essa_studio_pinned_chats') || '[]') } catch { return [] } })
   const [assistantOpen, setAssistantOpen] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
   const [scriptSink, setScriptSink] = useState<((text: string) => void) | null>(null)
   const handleSink = useCallback((sink: ((text: string) => void) | null) => setScriptSink(() => sink), [])
   // Fetch the studio in the background so it opens instantly.
@@ -107,6 +111,9 @@ export default function App() {
   const [renameTarget, setRenameTarget] = useState<VideoProject | null>(null)
   const [renameDraft, setRenameDraft] = useState('')
   const picker = useRef<HTMLInputElement>(null)
+  useBack(assistantOpen, () => setAssistantOpen(false))
+  useBack(sidebarOpen, () => setSidebarOpen(false))
+  useBack(aiOpen, () => setAiOpen(false))
   const bottom = useRef<HTMLDivElement>(null)
 
   useEffect(() => { setProjects(getAllProjects()) }, [])
@@ -224,37 +231,27 @@ export default function App() {
       localStorage.setItem(chatKey(current.id), JSON.stringify(next))
       setDraft(''); setFiles([])
       if (picker.current) picker.current.value = ''
-      const savedToken = localStorage.getItem('essa_studio_access_token')
-      if (!savedToken) throw new Error('انتهت جلسة الدخول. سجّل الدخول مرة أخرى.')
+      const ai = loadAi()
+      if (!ai) { setAiOpen(true); throw new Error('محتاج مفتاح الذكاء الاصطناعي الأول (حسابي ← مفتاح الذكاء الاصطناعي).') }
       const history = [...(project ? messages : []), userMessage]
         .slice(-20)
         .map(message => ({ role: message.role, content: message.text || (message.files?.length ? `أرفقت الملفات التالية: ${message.files.map(attachmentName).join('، ')}` : '') }))
         .filter(message => message.content.trim())
-      const imageAttachments = await Promise.all(uploadedFiles
+      const images = await Promise.all(uploadedFiles
         .filter(file => file.type.startsWith('image/'))
-        .map(async file => ({ name: file.name, mime_type: file.type, data: await fileToBase64(file) })))
+        .map(async file => ({ mime_type: file.type, data: await fileToBase64(file) })))
       const controller = new AbortController()
       const requestTimeout = window.setTimeout(() => controller.abort(), 180000)
-      let aiResponse: Response
+      let replyText: string
       try {
-        aiResponse = await fetch(`${API_BASE_URL}/api/v1/chat/reply`, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${savedToken}`,
-        },
-        body: JSON.stringify({ messages: history, attachments: imageAttachments }),
-        })
+        replyText = await askAi(ai, history, { signal: controller.signal, images })
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') throw new Error('الرد اتأخر أكثر من 3 دقايق. جرّب إرسال الرسالة مرة أخرى.')
-        throw new Error('حصلت مشكلة في الاتصال بالخادم. تأكد من الإنترنت وحاول مرة أخرى.')
+        throw error
       } finally { window.clearTimeout(requestTimeout) }
-      const aiData = await aiResponse.json().catch(() => ({}))
-      if (!aiResponse.ok) throw new Error(aiData.detail || 'تعذر الحصول على رد من المساعد.')
       const reply: ChatMessage = {
         id: crypto.randomUUID(), role: 'assistant',
-        text: aiData.reply,
+        text: replyText,
         at: new Date().toISOString()
       }
       const completed = [...next, reply]
@@ -304,7 +301,7 @@ export default function App() {
     .filter(item => item.name.toLocaleLowerCase('ar').includes(historySearch.trim().toLocaleLowerCase('ar')))
 
   return <main className={`chat-app ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} dir="rtl">
-    <Suspense fallback={<div className="chat-notice">بحمّل الاستوديو…</div>}><Studio apiBaseUrl={API_BASE_URL} account={authUser ? { name: authUser.display_name || authUser.email, initial: (authUser.display_name || authUser.email).trim().charAt(0).toUpperCase(), avatar: authUser.avatar_url } : null} onLogin={startGoogleLogin} onLogout={() => void logout()} theme={theme} onToggleTheme={toggleTheme} onOpenAssistant={() => setAssistantOpen(true)} onSink={handleSink} /></Suspense>
+    <Suspense fallback={<div className="chat-notice">بحمّل الاستوديو…</div>}><Studio onOpenAi={() => setAiOpen(true)} account={authUser ? { name: authUser.display_name || authUser.email, initial: (authUser.display_name || authUser.email).trim().charAt(0).toUpperCase(), avatar: authUser.avatar_url } : null} onLogin={startGoogleLogin} onLogout={() => void logout()} theme={theme} onToggleTheme={toggleTheme} onOpenAssistant={() => setAssistantOpen(true)} onSink={handleSink} /></Suspense>
     <div className={`assistant-layer ${assistantOpen ? 'open' : ''}`} onClick={() => setAssistantOpen(false)}>
     <div className="assistant-sheet" onClick={event => event.stopPropagation()} role="dialog" aria-label="المساعد">
     <header className="assistant-head">
@@ -405,5 +402,6 @@ export default function App() {
     </div>
     </div>
 
+    {aiOpen && <AiSettings onClose={() => setAiOpen(false)} onChange={() => setNotice('')} />}
   </main>
 }

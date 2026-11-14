@@ -1,6 +1,9 @@
 import React from 'react';
-import {Audio, staticFile} from 'remotion';
+import {staticFile} from 'remotion';
+import {Audio} from '@remotion/media';
 
-/** Voice-over from reels/public. Renders nothing when no file is given. */
+const isUrl = (value: string) => /^(blob:|data:|https?:)/.test(value);
+
+/** Voice-over: a file name inside reels/public, or a full URL (blob: in the browser). */
 export const VoiceOver: React.FC<{src?: string; volume?: number}> = ({src, volume = 1}) =>
-  src ? <Audio src={staticFile(src)} volume={volume} /> : null;
+  src ? <Audio src={isUrl(src) ? src : staticFile(src)} volume={volume} /> : null;

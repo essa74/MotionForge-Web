@@ -31,6 +31,8 @@ type Props = {
   nameBox?: string;
   chrome?: boolean;
   title?: string;
+  /** Extra style per cell, keyed "row,col" (0-based). Used for fills, bold and colours. */
+  cellStyle?: Record<string, React.CSSProperties>;
 };
 
 const ROW_NUM_W = 60;
@@ -40,6 +42,10 @@ const FORMULA_H = 52;
 const COL_HEAD_H = 44;
 const TABS = ['الصفحة الرئيسية', 'إدراج', 'تخطيط الصفحة', 'صيغ', 'بيانات', 'مراجعة', 'عرض'];
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+/** Height of the whole window (chrome + grid) at scale 1. */
+export const sheetHeight = (rowCount: number, rowHeight = 46, chrome = true) =>
+  (chrome ? TITLE_H + TABS_H + FORMULA_H : 0) + COL_HEAD_H + rowCount * rowHeight + 4;
 
 export const sheetWidth = (columns: SheetColumn[]) => ROW_NUM_W + columns.reduce((sum, c) => sum + c.width, 0);
 
@@ -57,11 +63,13 @@ export const ExcelSheet: React.FC<Props> = ({
   nameBox = 'A1',
   chrome = true,
   title = 'Book1 - Excel',
+  cellStyle,
 }) => {
   const s = (n: number) => n * scale;
   const totalW = sheetWidth(columns);
   const gridH = COL_HEAD_H + rows.length * rowHeight;
   const edge = rtl ? 'right' : 'left';
+  const startBorder = rtl ? 'borderRight' : 'borderLeft';
 
   const colStart = (c: number) => ROW_NUM_W + columns.slice(0, c).reduce((sum, col) => sum + col.width, 0);
 
@@ -89,7 +97,6 @@ export const ExcelSheet: React.FC<Props> = ({
     alignItems: 'center',
     overflow: 'hidden',
     whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
     fontFamily: FONT,
     fontSize: s(rowHeight * 0.42),
     color: brand.ink,
@@ -183,7 +190,7 @@ export const ExcelSheet: React.FC<Props> = ({
               {nameBox}
             </div>
             <span style={{color: brand.inkSoft, fontStyle: 'italic', direction: 'ltr'}}>fx</span>
-            <div style={{flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis'}}>
+            <div style={{flex: 1, minWidth: 0, overflow: 'hidden', whiteSpace: 'nowrap'}}>
               {formula}
             </div>
           </div>
@@ -204,7 +211,7 @@ export const ExcelSheet: React.FC<Props> = ({
                 justifyContent: 'center',
                 fontSize: s(22),
                 color: brand.inkSoft,
-                borderInlineStart: `${s(1)}px solid ${brand.grid}`,
+                [startBorder]: `${s(1)}px solid ${brand.grid}`,
                 borderBottom: `${s(1)}px solid ${brand.grid}`,
                 fontWeight: 600,
               }}
@@ -241,8 +248,9 @@ export const ExcelSheet: React.FC<Props> = ({
                     background: isHead ? brand.green : '#fff',
                     color: isHead ? '#fff' : brand.ink,
                     fontWeight: isHead ? 700 : 400,
-                    borderInlineStart: `${s(1)}px solid ${borders ? '#9aa3af' : brand.grid}`,
+                    [startBorder]: `${s(1)}px solid ${borders ? '#9aa3af' : brand.grid}`,
                     borderBottom: `${s(1)}px solid ${borders ? '#9aa3af' : brand.grid}`,
+                    ...(cellStyle?.[`${r},${c}`] ?? {}),
                   }}
                 >
                   {row[c] ?? ''}

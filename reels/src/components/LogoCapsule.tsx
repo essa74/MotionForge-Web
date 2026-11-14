@@ -1,5 +1,6 @@
 import React from 'react';
-import {Img, interpolate, spring, staticFile, useCurrentFrame, useVideoConfig} from 'remotion';
+import {Img, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
+import {resolveSrc} from '../lib/assets';
 import {brand, FONT} from '../lib/theme';
 
 type Props = {
@@ -26,14 +27,14 @@ export const LogoCapsule: React.FC<Props> = ({logo, handle = '@EssaXcel', label 
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'radial-gradient(ellipse at 50% 40%, #1b3a2a 0%, #0f172a 70%)',
+        background: 'radial-gradient(circle at 50% 50%, #1b3a2a 0%, #0f172a 70%)',
         gap: width * 0.05,
         opacity: interpolate(frame, [0, 8], [0, 1], {extrapolateRight: 'clamp'}),
       }}
     >
       <div style={{transform: `scale(${interpolate(logoIn, [0, 1], [0.7, 1])})`, opacity: logoIn}}>
         {logo ? (
-          <Img src={staticFile(logo)} style={{width: logoSize, height: logoSize, objectFit: 'contain'}} />
+          <Img src={resolveSrc(logo)} style={{width: logoSize, height: logoSize, objectFit: 'contain'}} />
         ) : (
           <div
             style={{

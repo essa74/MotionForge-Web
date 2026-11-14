@@ -7,16 +7,12 @@ import type {CaptionLine} from '../lib/types';
 const LATIN_RUN =
   /([A-Za-z0-9@=$][A-Za-z0-9@=$.\/:()_-]*(?: [+] [A-Za-z0-9@=$][A-Za-z0-9@=$.\/:()_-]*)*)/g;
 
+// Left-to-right isolate (U+2066) ... pop (U+2069) works in every renderer, unlike <bdi>.
 const renderMixed = (text: string) =>
-  text.split(LATIN_RUN).map((part, i) =>
-    i % 2 === 1 ? (
-      <bdi key={i} dir="ltr">
-        {part}
-      </bdi>
-    ) : (
-      part
-    ),
-  );
+  text
+    .split(LATIN_RUN)
+    .map((part, i) => (i % 2 === 1 ? '\u2066' + part + '\u2069' : part))
+    .join('');
 
 type Props = {
   lines: CaptionLine[];

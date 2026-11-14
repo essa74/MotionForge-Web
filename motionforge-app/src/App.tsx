@@ -6,7 +6,8 @@ import { saveProjectFiles, getProjectFiles, deleteProjectFiles } from './engine/
 
 
 // The video studio pulls in the whole render engine, so it is only loaded when opened.
-const Studio = lazy(() => import('./studio/Studio'))
+const loadStudio = () => import('./studio/Studio')
+const Studio = lazy(loadStudio)
 
 function renderMarkdown(source: string) {
   const escapeHtml = (value: string) => value
@@ -99,6 +100,8 @@ export default function App() {
   const [historySearch, setHistorySearch] = useState('')
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('essa_studio_pinned_chats') || '[]') } catch { return [] } })
   const [view, setView] = useState<'chat' | 'studio'>('chat')
+  // Fetch the studio in the background so it opens instantly.
+  useEffect(() => { const timer = window.setTimeout(() => void loadStudio(), 3000); return () => window.clearTimeout(timer) }, [])
   const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('essa_studio_theme') === 'light' ? 'light' : 'dark')
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<VideoProject | null>(null)
@@ -382,7 +385,7 @@ export default function App() {
   return <main className={`chat-app ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} dir="rtl">
     <header className="chat-top">
       <div className="chat-brand"><span className="chat-logo">E</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
-      <button className="header-new-chat header-studio" onClick={() => setView('studio')} aria-label="استوديو الريلز" title="استوديو الريلز">🎬</button>
+      <button className="header-new-chat header-studio" onPointerDown={() => void loadStudio()} onClick={() => setView('studio')} aria-label="استوديو الريلز" title="استوديو الريلز">🎬</button>
       <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
       <button className="header-new-chat" onClick={newChat} aria-label="محادثة جديدة" title="محادثة جديدة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
     </header>

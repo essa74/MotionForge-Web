@@ -7,12 +7,11 @@ import { validateSpec } from '../reels-engine/engine/validate'
 import { FORMATS, type Format } from '../reels-engine/lib/theme'
 import { loadReelFonts } from './fonts'
 import { buildScenePrompt, extractJson } from './scenePrompt'
+import { DEFAULT_SPEC_TEXT, KIND_LABEL, createProject, deleteProject, loadProjects, saveProject, type Kind, type Project } from './projects'
 import './studio.css'
 
 const FPS = 30
 const MAX_VOICE_SECONDS = 200
-const KEY_SCRIPT = 'essa_studio_script'
-const KEY_SPEC = 'essa_studio_spec'
 
 type Picked = { name: string; url: string }
 type Voice = Picked & { seconds: number }
@@ -28,13 +27,13 @@ function audioSeconds(url: string): Promise<number> {
 
 const DEFAULT_SPEC: ReelSpec = { format: 'vertical', scenes: [{ type: 'text', duration: 3, title: 'عنوان الريل', theme: 'dark' }, { type: 'logo', duration: 3 }] }
 
-export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; onClose: () => void }) {
-  const [script, setScript] = useState(() => localStorage.getItem(KEY_SCRIPT) || '')
-  const [format, setFormat] = useState<Format>('vertical')
+function Editor({ project, apiBaseUrl, onBack }: { project: Project; apiBaseUrl: string; onBack: () => void }) {
+  const [script, setScript] = useState(project.script)
+  const [format, setFormat] = useState<Format>(project.format)
   const [voice, setVoice] = useState<Voice | null>(null)
   const [logo, setLogo] = useState<Picked | null>(null)
   const [images, setImages] = useState<Picked[]>([])
-  const [specText, setSpecText] = useState(() => localStorage.getItem(KEY_SPEC) || JSON.stringify(DEFAULT_SPEC, null, 2))
+  const [specText, setSpecText] = useState(project.specText || DEFAULT_SPEC_TEXT)
   const [fontsReady, setFontsReady] = useState(false)
   const [asking, setAsking] = useState(false)
   const [askSeconds, setAskSeconds] = useState(0)
@@ -54,8 +53,10 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
     const timer = window.setTimeout(() => setMessage(''), /فشل|تعذر|خطأ|المتصفح لا|سجّل|اتأخر/.test(message) ? 15000 : 6000)
     return () => window.clearTimeout(timer)
   }, [message])
-  useEffect(() => { localStorage.setItem(KEY_SCRIPT, script) }, [script])
-  useEffect(() => { localStorage.setItem(KEY_SPEC, specText) }, [specText])
+  useEffect(() => {
+    const timer = window.setTimeout(() => saveProject(project.id, { script, specText, format }), 400)
+    return () => window.clearTimeout(timer)
+  }, [project.id, script, specText, format])
 
   const parsed = useMemo(() => {
     try {
@@ -164,7 +165,11 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
   const issues = [...parsed.errors, ...(missingImages.length ? [`صور ناقصة، ارفعها بنفس الاسم: ${missingImages.join('، ')}`] : [])]
 
   return <section className="studio" dir="rtl">
-    <div className="studio-head"><b>استوديو الريلز</b><span><button onClick={() => window.location.reload()}>تحديث</button> <button onClick={onClose}>رجوع للمحادثة</button></span></div>
+    <div className="studio-head">
+      <button onClick={onBack} aria-label="المشاريع">→ المشاريع</button>
+      <b>{project.name}</b>
+      <button onClick={() => window.location.reload()} aria-label="تحديث">↻</button>
+    </div>
 
     <div className="studio-card">
       <h3>1) المدخلات</h3>
@@ -218,5 +223,40 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
       </div>}
     </div>
     {message && <div className="studio-message"><span>{message}</span><button onClick={() => setMessage('')} aria-label="إغلاق">×</button></div>}
+  </section>
+}
+
+
+export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; onClose: () => void }) {
+  const [projects, setProjects] = useState<Project[]>(loadProjects)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [kind, setKind] = useState<Kind>('excel')
+  const open = projects.find(project => project.id === openId)
+
+  const refresh = () => setProjects(loadProjects())
+
+  if (open) return <Editor key={open.id} project={open} apiBaseUrl={apiBaseUrl} onBack={() => { refresh(); setOpenId(null) }} />
+
+  return <section className="studio" dir="rtl">
+    <div className="studio-head"><button onClick={onClose}>→ المحادثة</button><b>مشاريع الاستوديو</b><span /></div>
+
+    <div className="studio-card">
+      <h3>مشروع جديد</h3>
+      <input className="studio-input" value={name} onChange={event => setName(event.target.value)} placeholder="اسم المشروع (مثلاً: ريل Transpose)" />
+      <select value={kind} onChange={event => setKind(event.target.value as Kind)}>
+        {(Object.keys(KIND_LABEL) as Kind[]).map(key => <option key={key} value={key}>{KIND_LABEL[key]}</option>)}
+      </select>
+      <button className="primary" onClick={() => { const project = createProject(name, kind); setName(''); refresh(); setOpenId(project.id) }}>ابدأ المشروع</button>
+    </div>
+
+    {projects.length === 0 && <small>لسه مفيش مشاريع. اعمل أول مشروع من فوق.</small>}
+    {projects.map(project => <div className="studio-card studio-project" key={project.id}>
+      <button className="studio-project-open" onClick={() => setOpenId(project.id)}>
+        <b>{project.name}</b>
+        <small>{KIND_LABEL[project.kind]} · آخر تعديل {new Date(project.updated).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
+      </button>
+      <button aria-label="حذف المشروع" onClick={() => { if (window.confirm(`حذف "${project.name}"؟ مش هتقدر ترجعه.`)) { deleteProject(project.id); refresh() } }}>🗑</button>
+    </div>)}
   </section>
 }

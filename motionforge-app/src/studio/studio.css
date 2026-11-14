@@ -74,3 +74,6 @@
 .studio-swatches { display: flex; gap: 10px; }
 .studio .studio-swatches button { width: 36px; height: 36px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid transparent; }
 .studio .studio-swatches button.active { border-color: var(--text); }
+
+.studio-check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.5; color: var(--text2); }
+.studio-check input { margin-top: 4px; }

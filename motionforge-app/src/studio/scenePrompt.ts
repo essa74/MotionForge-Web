@@ -1,7 +1,7 @@
 /** The instruction sent to Gemini so that it answers with a scene list the engine can play. */
-export function buildScenePrompt(args: { script: string; voiceSeconds: number | null; imageNames: string[]; format: string; styleNote?: string }) {
-  const { script, voiceSeconds, imageNames, format, styleNote } = args
-  const style = styleNote ? `\n\nستايل الصفحة (التزم به في العناوين والألوان والتعليقات): ${styleNote}` : ''
+export function buildScenePrompt(args: { script: string; voiceSeconds: number | null; imageNames: string[]; format: string; styleNote?: string; allowExcel: boolean }) {
+  const { script, voiceSeconds, imageNames, format, styleNote, allowExcel } = args
+  const style = styleNote ? `\n\nتعليمات إلزامية من صاحب الصفحة (أهم من أي شيء تحت): ${styleNote}` : ''
   const length = voiceSeconds
     ? `طول الصوت ${voiceSeconds.toFixed(1)} ثانية. اجعل مجموع duration لكل المشاهد قبل مشهد اللوجو الأخير قريب من ${Math.max(1, voiceSeconds - 0).toFixed(0)} ثانية.`
     : 'لا يوجد صوت بعد: قدّر المدة من طول السكريبت (حوالي 2.5 كلمة في الثانية).'
@@ -11,17 +11,18 @@ export function buildScenePrompt(args: { script: string; voiceSeconds: number | 
 {"scenes":[ ... ]}
 
 أنواع المشاهد (كل مشهد له duration بالثواني، واختياري caption: نص قصير أو قائمة {text,from,to} بثواني نسبية لبداية المشهد):
-1) {"type":"text","duration":3,"title":"...","subtitle":"...","highlight":"كلمة من العنوان تتلوّن"}  (لا تكتب theme: الألوان من القالب)
-2) {"type":"excel","duration":9,"columns":[70,260,250,170],"rows":[["م","الاسم","القسم","الراتب"],["1","أحمد","المبيعات","8,500"]],"steps":[ ... ]}
+- {"type":"text","duration":3,"title":"...","subtitle":"...","highlight":"كلمة من العنوان تتلوّن"}  (لا تكتب theme: الألوان من القالب)
+${allowExcel ? `- {"type":"excel","duration":9,"columns":[70,260,250,170],"rows":[["م","الاسم","القسم","الراتب"],["1","أحمد","المبيعات","8,500"]],"steps":[ ... ]}
    الصف الأول (rows[0]) هو العنوان، وأعمدة الجدول تبدأ من A. أضف صفوفاً فاضية لو هتكتب فيها.
    الخطوات (at بالثواني من بداية المشهد):
    - {"at":1,"do":"select","range":"D2:D6","over":1}  تحديد خلية أو نطاق
    - {"at":3,"do":"keys","keys":["Ctrl","A"],"hold":2.4}  إظهار مفاتيح الكيبورد
    - {"at":5,"do":"type","cell":"D7","text":"=SUM(D2:D6)","result":"39,500","over":1.5}  كتابة (والنتيجة تظهر في الخلية)
    - {"at":7,"do":"format","range":"C7:D7","fill":"#fff4c2","bold":true}  تلوين أو Bold
-3) {"type":"image","duration":5,"src":"اسم ملف الصورة","motion":"zoom-in|zoom-out|pan-left|pan-right","title":"اختياري"}
+` : ''}
+- {"type":"image","duration":5,"src":"اسم ملف الصورة","motion":"zoom-in|zoom-out|pan-left|pan-right","title":"اختياري"}
    استخدم فقط أسماء الصور المتاحة${imageNames.length ? ': ' + imageNames.join(', ') : ' (لا توجد صور مرفوعة، فلا تستخدم هذا النوع)'}.
-4) {"type":"logo","duration":3}  آخر مشهد دائماً. لا تكتب فيه اسم صفحة ولا handle ولا لوجو: يتضاف تلقائياً.
+- {"type":"logo","duration":3}  آخر مشهد دائماً. لا تكتب فيه اسم صفحة ولا handle ولا لوجو: يتضاف تلقائياً.
 
 قواعد:
 - لا تختصر ولا تحذف أي جملة من السكريبت: كل جملة تظهر في مشهد (title أو subtitle أو caption) بنفس معناها وبكلام المستخدم. عدد المشاهد النصية يساوي تقريباً عدد الجمل.
@@ -29,7 +30,8 @@ export function buildScenePrompt(args: { script: string; voiceSeconds: number | 
 - لا تكتب أسماء صفحات أو حسابات لم تُذكر في السكريبت.
 - ابدأ بمشهد text يجذب الانتباه، وانهِ بمشهد logo.
 - كل caption جملة قصيرة بالمصري (3 إلى 7 كلمات)، وتتزامن مع الكلام.
-- مشاهد Excel تعرض الشرح خطوة بخطوة بنفس ترتيب كلام السكريبت. بيانات الجدول واقعية (أسماء موظفين، أقسام، مبالغ).
+${allowExcel ? '- مشاهد Excel تعرض الشرح خطوة بخطوة بنفس ترتيب كلام السكريبت. بيانات الجدول واقعية (أسماء موظفين، أقسام، مبالغ).' : '- ممنوع تماماً استخدام مشاهد جداول أو Excel. استخدم المشاهد المذكورة أعلاه فقط.'}
+- لو مفيش مشهد يناسب الجملة، استخدم مشهد text. لا تخترع أنواع مشاهد جديدة.
 - ${length}
 
 السكريبت:

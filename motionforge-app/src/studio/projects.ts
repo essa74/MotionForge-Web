@@ -1,7 +1,7 @@
 import type { Format } from '../reels-engine/lib/theme'
 
 // A template is a personal look the user defines (name, colour, style note for Gemini). Nothing is built in except the free project.
-export type Template = { id: string; name: string; color: string; note: string; bg?: string; handle?: string }
+export type Template = { id: string; name: string; color: string; note: string; bg?: string; handle?: string; excel?: boolean }
 export const FREE_TEMPLATE: Template = { id: 'free', name: 'فيديو حر', color: '#E8B64C', note: '', bg: '#0b0b10', handle: '' }
 export const TEMPLATE_BGS = ['#0b0b10', '#0b1330', '#111827', '#0f2a1d', '#ffffff']
 export const TEMPLATE_COLORS = ['#E8B64C', '#2e9b63', '#4f8cff', '#e0627a', '#a76bff', '#e08a3c']
@@ -10,8 +10,8 @@ const TEMPLATES = 'essa_studio_templates'
 export function loadTemplates(): Template[] {
   try { return JSON.parse(localStorage.getItem(TEMPLATES) || '[]') as Template[] } catch { return [] }
 }
-export function saveTemplate(input: { id?: string; name: string; color: string; note: string; bg?: string; handle?: string }): Template {
-  const template: Template = { id: input.id || crypto.randomUUID(), name: input.name.trim() || 'قالب جديد', color: input.color, note: input.note.trim(), bg: input.bg || TEMPLATE_BGS[0], handle: (input.handle || '').trim() }
+export function saveTemplate(input: { id?: string; name: string; color: string; note: string; bg?: string; handle?: string; excel?: boolean }): Template {
+  const template: Template = { id: input.id || crypto.randomUUID(), name: input.name.trim() || 'قالب جديد', color: input.color, note: input.note.trim(), bg: input.bg || TEMPLATE_BGS[0], handle: (input.handle || '').trim(), excel: !!input.excel }
   const rest = loadTemplates().filter(item => item.id !== template.id)
   try { localStorage.setItem(TEMPLATES, JSON.stringify([...rest, template])) } catch { /* storage full or blocked */ }
   return template
@@ -66,3 +66,8 @@ export function saveProject(id: string, patch: Partial<Omit<Project, 'id'>>) {
 }
 
 export function deleteProject(id: string) { write(loadProjects().filter(project => project.id !== id)) }
+
+/** Excel (table) scenes only make sense for Excel content: a template opts in, a free project decides from its script. */
+export function allowsExcel(template: Template, script: string): boolean {
+  return template.id === 'free' ? /excel|إكسل|اكسل|إكسيل|اكسيل/i.test(script) : !!template.excel
+}

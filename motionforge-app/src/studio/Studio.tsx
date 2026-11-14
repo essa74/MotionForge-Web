@@ -1,12 +1,10 @@
 import { lazy, Suspense, useState } from 'react'
-import { KIND_LABEL, createProject, deleteProject, loadProjects, type Kind, type Project } from './projects'
+import { FREE_TEMPLATE, TEMPLATE_COLORS, createProject, deleteProject, deleteTemplate, loadProjects, loadTemplates, saveTemplate, templateById, type Project, type Template } from './projects'
 import { ChatIcon, ICON } from './ui'
 import './studio.css'
 
 // The editor carries the video engine (Remotion), so it loads only when a project is opened.
 const Editor = lazy(() => import('./Editor'))
-
-const KIND_ICON: Record<Kind, string> = { excel: 'xl', bein: 'bs', historima: 'hs' }
 
 type Account = { name: string; initial: string; avatar?: string | null } | null
 
@@ -16,7 +14,9 @@ export default function Studio({ apiBaseUrl, account, onLogin, onLogout, theme, 
   const [openId, setOpenId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
-  const [kind, setKind] = useState<Kind>('excel')
+  const [templates, setTemplates] = useState<Template[]>(loadTemplates)
+  const [templateId, setTemplateId] = useState('free')
+  const [editing, setEditing] = useState<{ id?: string; name: string; color: string; note: string } | null>(null)
   const open = projects.find(project => project.id === openId)
 
   const refresh = () => setProjects(loadProjects())
@@ -54,26 +54,41 @@ export default function Studio({ apiBaseUrl, account, onLogin, onLogout, theme, 
         ? <div className="studio-card">
             <h3>مشروع جديد</h3>
             <input className="studio-input" value={name} onChange={event => setName(event.target.value)} placeholder="اسم المشروع (مثلاً: ريل Transpose)" autoFocus />
+            <label>القالب</label>
             <div className="studio-kinds">
-              {(Object.keys(KIND_LABEL) as Kind[]).map(key => <button key={key} className={`kind-${key} ${kind === key ? 'active' : ''}`} onClick={() => setKind(key)}>{KIND_LABEL[key]}</button>)}
+              {[FREE_TEMPLATE, ...templates].map(item => <button key={item.id} className={templateId === item.id ? 'active' : ''} style={templateId === item.id ? { borderColor: item.color, color: item.color, background: item.color + '24' } : undefined} onClick={() => setTemplateId(item.id)}>{item.name}</button>)}
+              <button onClick={() => setEditing({ name: '', color: TEMPLATE_COLORS[0], note: '' })}>＋ قالب جديد</button>
             </div>
+            {templateId !== 'free' && !editing && <div className="studio-actions">
+              <button onClick={() => { const item = templateById(templateId); setEditing({ id: item.id, name: item.name, color: item.color, note: item.note }) }}>تعديل القالب</button>
+              <button className="danger" onClick={() => { if (window.confirm('حذف القالب؟ المشاريع اللي عليه هتفضل موجودة.')) { deleteTemplate(templateId); setTemplates(loadTemplates()); setTemplateId('free') } }}>حذف القالب</button>
+            </div>}
+            {editing && <div className="studio-template-form">
+              <input className="studio-input" value={editing.name} onChange={event => setEditing({ ...editing, name: event.target.value })} placeholder="اسم القالب (اسم صفحتك مثلاً)" />
+              <div className="studio-swatches">{TEMPLATE_COLORS.map(color => <button key={color} aria-label={`لون ${color}`} aria-pressed={editing.color === color} className={editing.color === color ? 'active' : ''} style={{ background: color }} onClick={() => setEditing({ ...editing, color })} />)}</div>
+              <textarea value={editing.note} onChange={event => setEditing({ ...editing, note: event.target.value })} rows={4} placeholder="وصف الستايل لجيمناي (اختياري). مثلاً: خلفية سودا، شخصية عود كبريت بيضاء، كلمة مهمة بالدهبي في كل جملة" />
+              <div className="studio-actions">
+                <button className="primary" onClick={() => { const saved = saveTemplate(editing); setTemplates(loadTemplates()); setTemplateId(saved.id); setEditing(null) }}>حفظ القالب</button>
+                <button onClick={() => setEditing(null)}>إلغاء</button>
+              </div>
+            </div>}
             <div className="studio-actions">
-              <button className="primary" onClick={() => { const project = createProject(name, kind); setName(''); setCreating(false); refresh(); setOpenId(project.id) }}>ابدأ المشروع</button>
+              <button className="primary" onClick={() => { const project = createProject(name, templateId); setName(''); setCreating(false); refresh(); setOpenId(project.id) }}>ابدأ المشروع</button>
               <button onClick={() => setCreating(false)}>إلغاء</button>
             </div>
           </div>
         : <button className="studio-new" onClick={() => setCreating(true)}>
             <span className="studio-new-plus"><svg width="22" height="22" viewBox="0 0 24 24" {...ICON} strokeWidth={2.4}><path d="M12 5v14M5 12h14" /></svg></span>
-            <span><b>مشروع جديد</b><small>Excel · بين السطور · HISTORIMA</small></span>
+            <span><b>مشروع جديد</b><small>أي فكرة، بقالبك أو من غير قالب</small></span>
           </button>}
 
       {projects.length === 0 && !creating && <small>لسه مفيش مشاريع. اعمل أول مشروع من فوق.</small>}
       {projects.map(project => <div className="studio-project" key={project.id}>
         <button className="studio-project-open" onClick={() => setOpenId(project.id)}>
-          <span className={`studio-thumb thumb-${KIND_ICON[project.kind]}`} aria-hidden="true">{project.kind === 'excel' && <svg viewBox="0 0 76 96" width="76" height="96"><rect x="10" y="16" width="56" height="50" rx="5" fill="rgba(255,255,255,.14)" /><path d="M10 29h56M10 41h56M10 53h56M29 16v50M48 16v50" stroke="rgba(255,255,255,.55)" strokeWidth="1.2" /><rect x="10" y="16" width="56" height="12" rx="5" fill="rgba(255,255,255,.3)" /><rect x="10" y="78" width="56" height="6" rx="3" fill="#E8B64C" /></svg>}{project.kind === 'historima' && <span className="thumb-brand">HISTORIMA</span>}{project.kind === 'bein' && <svg viewBox="0 0 76 96" width="76" height="96"><circle cx="38" cy="38" r="11" fill="none" stroke="#fff" strokeWidth="2.4" /><path d="M38 49v22M38 56l-12 8M38 56l12 8M38 71l-9 14M38 71l9 14" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" /><path d="M0 88h76" stroke="#E8B64C" strokeWidth="2" /></svg>}</span>
+          <span className="studio-thumb" aria-hidden="true" style={{ background: `linear-gradient(160deg, ${templateById(project.templateId).color}, #0b0c10)` }}>{project.name.trim().charAt(0)}</span>
           <span className="studio-project-info">
             <b>{project.name}</b>
-            <span className={`kind-chip kind-${project.kind}`}>{KIND_LABEL[project.kind]}</span>
+            <span className="kind-chip" style={{ background: templateById(project.templateId).color + "2e", color: templateById(project.templateId).color }}>{templateById(project.templateId).name}</span>
             <small>آخر تعديل: {new Date(project.updated).toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
           </span>
         </button>

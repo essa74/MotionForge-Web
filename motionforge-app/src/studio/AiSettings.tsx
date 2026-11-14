@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PROVIDERS, askAi, clearAi, loadAi, saveAi, type AiSettings as Settings, type Provider } from '../ai'
+import { IMAGE_MODELS, PROVIDERS, askAi, clearAi, loadAi, saveAi, type AiSettings as Settings, type Provider } from '../ai'
 
 export default function AiSettings({ onClose, onChange }: { onClose: () => void; onChange: () => void }) {
   const saved = loadAi()
@@ -7,11 +7,12 @@ export default function AiSettings({ onClose, onChange }: { onClose: () => void;
   const [key, setKey] = useState(saved?.key || '')
   const [model, setModel] = useState(saved?.model || '')
   const [baseUrl, setBaseUrl] = useState(saved?.baseUrl || '')
+  const [imageModel, setImageModel] = useState(saved?.imageModel || '')
   const [show, setShow] = useState(false)
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
   const info = PROVIDERS[provider]
-  const current = (): Settings => ({ provider, key: key.trim(), model: model.trim(), baseUrl: baseUrl.trim() })
+  const current = (): Settings => ({ provider, key: key.trim(), model: model.trim(), baseUrl: baseUrl.trim(), imageModel: imageModel.trim() })
 
   async function test() {
     if (!key.trim()) return setStatus('الصق المفتاح الأول.')
@@ -40,6 +41,7 @@ export default function AiSettings({ onClose, onChange }: { onClose: () => void;
       </div>
       {provider === 'custom' && <input style={{ direction: 'ltr' }} placeholder="https://.../v1" value={baseUrl} onChange={e => setBaseUrl(e.target.value)} />}
       <input style={{ direction: 'ltr' }} placeholder={`الموديل (الافتراضي: ${info.model || 'مطلوب'})`} value={model} onChange={e => setModel(e.target.value)} />
+      {(provider === 'gemini' || provider === 'openai' || provider === 'custom') && <input style={{ direction: 'ltr' }} placeholder={`موديل الصور (الافتراضي: ${IMAGE_MODELS[provider] || 'مطلوب'})`} value={imageModel} onChange={e => setImageModel(e.target.value)} />}
       {status && <small>{status}</small>}
       <button disabled={busy} onClick={() => void test()}>جرّب المفتاح</button>
       <button className="primary" onClick={save}>حفظ</button>

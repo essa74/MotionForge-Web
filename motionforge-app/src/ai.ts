@@ -1,6 +1,6 @@
 // Bring-your-own-key AI layer: every user brings their own key; calls go straight from the browser.
 export type Provider = 'gemini' | 'openai' | 'claude' | 'openrouter' | 'custom'
-export type AiSettings = { provider: Provider; key: string; model: string; baseUrl: string }
+export type AiSettings = { provider: Provider; key: string; model: string; baseUrl: string; imageModel?: string }
 export type AiMessage = { role: 'user' | 'assistant'; content: string }
 export type AiImage = { mime_type: string; data: string }
 
@@ -16,7 +16,7 @@ const STORE = 'essa_studio_ai'
 export function loadAi(): AiSettings | null {
   try {
     const v = JSON.parse(localStorage.getItem(STORE) || 'null')
-    return v && v.key ? { provider: v.provider || 'gemini', key: v.key, model: v.model || '', baseUrl: v.baseUrl || '' } : null
+    return v && v.key ? { provider: v.provider || 'gemini', key: v.key, model: v.model || '', baseUrl: v.baseUrl || '', imageModel: v.imageModel || '' } : null
   } catch { return null }
 }
 export function saveAi(s: AiSettings) { localStorage.setItem(STORE, JSON.stringify(s)) }
@@ -64,4 +64,48 @@ export async function askAi(s: AiSettings, messages: AiMessage[], opts: { signal
     : d.choices?.[0]?.message?.content
   if (!text) throw new Error('المزوّد رد برد فاضي. جرّب تاني.')
   return text
+}
+
+export const IMAGE_MODELS: Partial<Record<Provider, string>> = { gemini: 'gemini-2.5-flash-image', openai: 'gpt-image-1' }
+
+/** Generates one picture with the user's own key. Many keys/plans do not allow it: the provider's message is passed on. */
+export async function generateImage(s: AiSettings, prompt: string, opts: { signal?: AbortSignal; shape?: 'vertical' | 'horizontal' | 'square' } = {}): Promise<{ mime: string; data: string }> {
+  const model = (s.imageModel || '').trim() || IMAGE_MODELS[s.provider] || ''
+  if (s.provider === 'claude' || s.provider === 'openrouter') throw new Error('المزوّد ده مش مدعوم لتوليد الصور هنا. استخدم Gemini أو OpenAI.')
+  if (!model) throw new Error('اكتب اسم موديل الصور في إعدادات المفتاح.')
+  let url: string, headers: Record<string, string> = { 'Content-Type': 'application/json' }, body: unknown
+  if (s.provider === 'gemini') {
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
+    headers['x-goog-api-key'] = s.key
+    body = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseModalities: ['TEXT', 'IMAGE'] } }
+  } else {
+    const base = s.provider === 'openai' ? 'https://api.openai.com/v1' : s.baseUrl.trim().replace(/\/+$/, '')
+    if (!base) throw new Error('اكتب عنوان الـ API للمزوّد.')
+    url = `${base}/images/generations`
+    headers.Authorization = `Bearer ${s.key}`
+    body = { model, prompt, size: opts.shape === 'horizontal' ? '1536x1024' : opts.shape === 'square' ? '1024x1024' : '1024x1536' }
+  }
+  let res: Response
+  try { res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: opts.signal }) }
+  catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw e
+    throw new Error('تعذر الاتصال بالمزوّد.')
+  }
+  const data = await res.json().catch(() => ({})) as { candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string }; inline_data?: { mime_type?: string; data?: string } }> } }>; data?: Array<{ b64_json?: string }>; error?: { message?: string } }
+  if (!res.ok) {
+    const detail = data.error?.message
+    if (res.status === 401 || res.status === 403) throw new Error(`المفتاح مش مسموح له بتوليد الصور${detail ? ': ' + detail : '.'}`)
+    if (res.status === 429) throw new Error(`وصلت للحد المسموح لتوليد الصور على مفتاحك${detail ? ': ' + detail : '.'}`)
+    throw new Error(detail ? `رفض المزوّد توليد الصورة: ${detail}` : `تعذر توليد الصورة (${res.status}).`)
+  }
+  if (s.provider === 'gemini') {
+    for (const p of data.candidates?.[0]?.content?.parts ?? []) {
+      const img = p.inlineData ?? (p.inline_data ? { mimeType: p.inline_data.mime_type, data: p.inline_data.data } : undefined)
+      if (img?.data) return { mime: img.mimeType || 'image/png', data: img.data }
+    }
+    throw new Error('الموديل ما رجّعش صورة (ممكن الوصف اترفض). جرّب وصف تاني.')
+  }
+  const b64 = data.data?.[0]?.b64_json
+  if (!b64) throw new Error('المزوّد ما رجّعش صورة.')
+  return { mime: 'image/png', data: b64 }
 }

@@ -77,3 +77,9 @@
 
 .studio-check { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; line-height: 1.5; color: var(--text2); }
 .studio-check input { margin-top: 4px; }
+
+.studio-thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.studio-thumbs figure { position: relative; margin: 0; width: 84px; }
+.studio-thumbs img { width: 84px; height: 84px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); display: block; }
+.studio-thumbs figcaption { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-thumbs button { position: absolute; top: 2px; left: 2px; width: 22px; height: 22px; padding: 0; border-radius: 50%; line-height: 1; }

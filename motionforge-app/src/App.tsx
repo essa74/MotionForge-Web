@@ -1,4 +1,4 @@
-import { createElement, lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { createElement, lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import type { ProjectAsset, VideoProject } from './engine/projectTypes'
 import { createProject, getAllProjects, updateProject, deleteProject } from './engine/projectStore'
@@ -6,8 +6,7 @@ import { saveProjectFiles, getProjectFiles, deleteProjectFiles } from './engine/
 
 
 // The video studio pulls in the whole render engine, so it is only loaded when opened.
-const loadStudio = () => import('./studio/Studio')
-const Studio = lazy(loadStudio)
+const Studio = lazy(() => import('./studio/Studio'))
 
 function renderMarkdown(source: string) {
   const escapeHtml = (value: string) => value
@@ -99,9 +98,10 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [historySearch, setHistorySearch] = useState('')
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('essa_studio_pinned_chats') || '[]') } catch { return [] } })
-  const [view, setView] = useState<'chat' | 'studio'>('chat')
+  const [assistantOpen, setAssistantOpen] = useState(false)
+  const [scriptSink, setScriptSink] = useState<((text: string) => void) | null>(null)
+  const handleSink = useCallback((sink: ((text: string) => void) | null) => setScriptSink(() => sink), [])
   // Fetch the studio in the background so it opens instantly.
-  useEffect(() => { const timer = window.setTimeout(() => void loadStudio(), 3000); return () => window.clearTimeout(timer) }, [])
   const [theme, setTheme] = useState<'dark' | 'light'>(() => localStorage.getItem('essa_studio_theme') === 'light' ? 'light' : 'dark')
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<VideoProject | null>(null)
@@ -383,13 +383,18 @@ export default function App() {
     .filter(item => item.name.toLocaleLowerCase('ar').includes(historySearch.trim().toLocaleLowerCase('ar')))
 
   return <main className={`chat-app ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} dir="rtl">
-    <header className="chat-top">
-      <div className="chat-brand"><span className="chat-logo">E</span><div><b>EssaStudio AI</b><small>استوديو إنتاج الفيديو</small></div></div>
-      <button className="header-new-chat header-studio" onPointerDown={() => void loadStudio()} onClick={() => setView('studio')} aria-label="استوديو الريلز" title="استوديو الريلز">🎬</button>
-      <button className="sidebar-toggle" onClick={() => setSidebarOpen(value => !value)} aria-label="فتح قائمة المحادثات">☰</button>
-      <button className="header-new-chat" onClick={newChat} aria-label="محادثة جديدة" title="محادثة جديدة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
+    <Suspense fallback={<div className="chat-notice">بحمّل الاستوديو…</div>}><Studio apiBaseUrl={API_BASE_URL} onOpenAssistant={() => setAssistantOpen(true)} onSink={handleSink} /></Suspense>
+    <div className={`assistant-layer ${assistantOpen ? 'open' : ''}`} onClick={() => setAssistantOpen(false)}>
+    <div className="assistant-sheet" onClick={event => event.stopPropagation()} role="dialog" aria-label="المساعد">
+    <header className="assistant-head">
+      <div className="assistant-title"><span className="assistant-logo">E</span><div><b>المساعد</b><small>{scriptSink ? 'بيشتغل جوه مشروعك' : 'اسأل واكتب أفكارك'}</small></div></div>
+      <div className="sheet-actions">
+        <button className="sheet-btn" onClick={() => setSidebarOpen(value => !value)} aria-label="المحادثات السابقة" title="المحادثات السابقة">☰</button>
+        <button className="sheet-btn" onClick={newChat} aria-label="محادثة جديدة" title="محادثة جديدة"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>
+        <button className="sheet-btn" onClick={() => setAssistantOpen(false)} aria-label="إغلاق المساعد" title="إغلاق"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+      </div>
     </header>
-    {view === 'studio' ? <Suspense fallback={<div className="chat-notice">بحمّل الاستوديو…</div>}><Studio apiBaseUrl={API_BASE_URL} onClose={() => setView('chat')} /></Suspense> : <div className="chat-layout">
+    <div className="chat-layout">
       <section className="chat-main">
         {!project && messages.length === 0 ? <div className="chat-welcome">
           <h1>{authUser ? `أهلاً بيك، ${authUser.display_name || authUser.email.split('@')[0]}` : 'إيه اللي حابب نشتغل عليه؟'}</h1>
@@ -411,6 +416,7 @@ export default function App() {
               })}</div> : null}
             </div>
             <div className="message-tools">
+              {m.role !== 'user' && scriptSink && m.text && <button type="button" className="message-insert-button" onClick={() => { scriptSink(m.text || ''); setAssistantOpen(false) }}>＋ حطه في السكريبت</button>}
               <button type="button" className="message-copy-button" onClick={async () => {
                 const content = [m.text, ...(m.files?.length ? [`المرفقات: ${m.files.map(attachmentName).join('، ')}`] : [])].filter(Boolean).join('\n');
                 try {
@@ -519,7 +525,9 @@ export default function App() {
           <div className="dialog-actions"><button className="dialog-cancel" onClick={() => setRenameTarget(null)}>إلغاء</button><button className="dialog-confirm" onClick={saveProjectName} disabled={!renameDraft.trim()}>حفظ</button></div>
         </section>
       </div>}
-    </div>}
+    </div>
+    </div>
+    </div>
 
   </main>
 }

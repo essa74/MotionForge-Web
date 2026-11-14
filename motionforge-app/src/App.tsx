@@ -2,6 +2,7 @@ import { createElement, lazy, Suspense, useCallback, useEffect, useRef, useState
 import './App.css'
 import type { ProjectAsset, VideoProject } from './engine/projectTypes'
 import { createProject, getAllProjects, updateProject, deleteProject } from './engine/projectStore'
+import HistoryPanel from './History'
 import { saveProjectFiles, getProjectFiles, deleteProjectFiles } from './engine/assetStore'
 
 
@@ -383,32 +384,8 @@ export default function App() {
         <div className="composer-disclaimer">EssaStudio AI قد يخطئ. راجع النتائج قبل استخدامها.</div>
         </div>
       </section>
-      <aside className={`chat-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
-        <div className="sidebar-heading"><b>مساحة العمل</b><button onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة">×</button></div>
-        <button className="sidebar-new-chat" onClick={newChat}>＋ محادثة جديدة</button>
-        <label className="history-search">
-          <span>⌕</span>
-          <input value={historySearch} onChange={event => setHistorySearch(event.target.value)} placeholder="ابحث في المحادثات" />
-        </label>
-        <div className="history-label">الأخيرة</div>
-        <div className="history-list">
-          {visibleProjects.length ? visibleProjects.map(p => <div key={p.id} className={`project-choice ${project?.id === p.id ? 'active' : ''}`}>
-            <button type="button" className="history-open" onClick={() => openProject(p)}>
-              <span className="history-chat-icon">{pinnedIds.includes(p.id) ? '★' : '◷'}</span>
-              <span className="history-chat-copy"><b>{p.name}</b><small>{new Date(p.updatedAt).toLocaleDateString('ar-EG')}</small></span>
-            </button>
-            <span className="history-menu-wrap">
-              <button type="button" className="history-menu-trigger" aria-label="خيارات المحادثة" title="خيارات المحادثة" onClick={event => { event.stopPropagation(); setOpenMenuId(openMenuId === p.id ? null : p.id) }}>•••</button>
-              {openMenuId === p.id && <span className="history-menu">
-                <button type="button" onClick={event => { event.stopPropagation(); togglePin(p.id); setOpenMenuId(null) }}>{pinnedIds.includes(p.id) ? 'إلغاء التثبيت' : 'تثبيت المحادثة'} <span>{pinnedIds.includes(p.id) ? '★' : '☆'}</span></button>
-                <button type="button" onClick={event => { event.stopPropagation(); renameProject(p) }}>تعديل الاسم <span>✎</span></button>
-                <button type="button" className="history-delete-action" onClick={event => { event.stopPropagation(); setConfirmDelete(p); setOpenMenuId(null) }}>حذف المحادثة <span>⌫</span></button>
-              </span>}
-            </span>
-          </div>) : <p className="history-empty">{historySearch ? 'لا توجد محادثات مطابقة.' : 'محادثاتك الجديدة هتظهر هنا.'}</p>}
-        </div>
-      </aside>
-      {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة" />}
+      <HistoryPanel open={sidebarOpen} projects={visibleProjects} pinnedIds={pinnedIds} activeId={project?.id} search={historySearch} menuId={openMenuId} chatKey={chatKey}
+        onSearch={setHistorySearch} onMenu={setOpenMenuId} onOpen={openProject} onNew={newChat} onPin={togglePin} onRename={renameProject} onDelete={setConfirmDelete} onClose={() => setSidebarOpen(false)} />
       {confirmDelete && <div className="dialog-backdrop" role="presentation" onClick={() => setConfirmDelete(null)}>
         <section className="app-dialog" role="dialog" aria-modal="true" aria-labelledby="delete-dialog-title" onClick={event => event.stopPropagation()}>
           <div className="dialog-icon">⌫</div>

@@ -45,6 +45,12 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
   const abort = useRef<AbortController | null>(null)
 
   useEffect(() => { loadReelFonts().then(() => setFontsReady(true)).catch(() => setMessage('تعذر تحميل الخطوط.')) }, [])
+  // Notices fade out on their own (errors stay a little longer); the x button closes them at once.
+  useEffect(() => {
+    if (!message) return
+    const timer = window.setTimeout(() => setMessage(''), /فشل|تعذر|خطأ|المتصفح لا|سجّل|اتأخر/.test(message) ? 15000 : 6000)
+    return () => window.clearTimeout(timer)
+  }, [message])
   useEffect(() => { localStorage.setItem(KEY_SCRIPT, script) }, [script])
   useEffect(() => { localStorage.setItem(KEY_SPEC, specText) }, [specText])
 
@@ -171,7 +177,7 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
     <div className="studio-card">
       <h3>3) المعاينة والرندر</h3>
       {fontsReady && spec ? <div className="studio-player" style={{ aspectRatio: `${size.width} / ${size.height}` }}>
-        <Player component={SceneReel} inputProps={inputProps} durationInFrames={frames} fps={FPS} compositionWidth={size.width} compositionHeight={size.height} controls style={{ width: '100%', height: '100%' }} acknowledgeRemotionLicense />
+        <Player component={SceneReel} inputProps={inputProps} durationInFrames={frames} fps={FPS} compositionWidth={size.width} compositionHeight={size.height} initialFrame={Math.min(frames - 1, 24)} controls style={{ width: '100%', height: '100%' }} acknowledgeRemotionLicense />
       </div> : <small>{spec ? 'بحمّل الخطوط…' : 'صحّح المشاهد عشان تظهر المعاينة.'}</small>}
       <div className="studio-actions">
         <button className="primary" onClick={() => void render()} disabled={!spec || rendering || !fontsReady}>{rendering ? 'جارٍ الرندر…' : 'اعمل الفيديو MP4'}</button>
@@ -185,6 +191,6 @@ export default function Studio({ apiBaseUrl, onClose }: { apiBaseUrl: string; on
         <a className="studio-download" href={result.url} download="reel.mp4">تحميل الفيديو</a>
       </div>}
     </div>
-    {message && <div className="studio-message">{message}</div>}
+    {message && <div className="studio-message"><span>{message}</span><button onClick={() => setMessage('')} aria-label="إغلاق">×</button></div>}
   </section>
 }

@@ -1,0 +1,52 @@
+name: EssaStudio - First 1080p Video
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: essa-studio-first-render
+  cancel-in-progress: false
+
+jobs:
+  render:
+    name: Render first intro video
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: render-demo
+    steps:
+      - name: Checkout private project
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: render-demo/package.json
+
+      - name: Install Remotion dependencies
+        run: npm install --no-audit --no-fund --ignore-scripts
+
+      - name: Ensure Remotion browser
+        run: npx remotion browser ensure
+
+      - name: Render 1080p MP4
+        run: npm run render
+
+      - name: Verify MP4 output
+        run: |
+          test -s out/essa-studio-intro.mp4
+          ffprobe -v error -show_entries format=duration,size -of json out/essa-studio-intro.mp4
+
+      - name: Upload private video artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: essa-studio-first-video
+          path: render-demo/out/essa-studio-intro.mp4
+          if-no-files-found: error
+          retention-days: 7

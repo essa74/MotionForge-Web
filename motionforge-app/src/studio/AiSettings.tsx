@@ -34,6 +34,11 @@ export default function AiSettings({ onClose, onChange }: { onClose: () => void;
         {(Object.keys(PROVIDERS) as Provider[]).map(p => <option key={p} value={p}>{PROVIDERS[p].label}</option>)}
       </select>
       <small>{info.hint}{info.link && <> — <a href={info.link} target="_blank" rel="noreferrer">افتح الرابط</a></>}</small>
+      <details className="key-guide">
+        <summary>إزاي أجيب مفتاح؟</summary>
+        <ol>{info.steps.map(step => <li key={step}>{step}</li>)}</ol>
+        <small>ما تشاركش المفتاح مع حد. لو اتسرّب امسحه من موقع المزوّد واعمل واحد جديد.</small>
+      </details>
       <div style={{ display: 'flex', gap: 8 }}>
         <input style={{ flex: 1, direction: 'ltr' }} type={show ? 'text' : 'password'} placeholder="API key" value={key} onChange={e => setKey(e.target.value)} autoComplete="off" />
         <button onClick={() => setShow(!show)}>{show ? 'إخفاء' : 'إظهار'}</button>

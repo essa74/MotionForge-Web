@@ -1278,3 +1278,6 @@ body{background:#212121!important;color:#ececec}
 }
 .theme-light .agent-test-button { color: #4b3276; background: #f0e9ff; }
 .theme-light .agent-test-result { color: #493b5c; background: #f7f3fc; }
+
+/* Reel studio shortcut sits beside the new-chat button. */
+.chat-top .header-new-chat.header-studio{left:44px!important;font-size:17px}

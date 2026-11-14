@@ -8,7 +8,8 @@
     "render": "node scripts/render.mjs",
     "check": "tsc --noEmit",
     "web:build": "vite build --config web/vite.config.ts",
-    "web:dev": "vite --config web/vite.config.ts"
+    "web:dev": "vite --config web/vite.config.ts",
+    "sync-engine": "node scripts/sync-engine.mjs"
   },
   "dependencies": {
     "@remotion/cli": "4.0.542",

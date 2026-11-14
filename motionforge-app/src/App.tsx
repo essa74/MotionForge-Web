@@ -93,8 +93,6 @@ export default function App() {
   const [, setStorageStatus] = useState('جارٍ فحص حماية التخزين...')
   const [authUser, setAuthUser] = useState<AuthUser | null>(null)
   const [, setAuthLoading] = useState(true)
-  const [agentBusy, setAgentBusy] = useState(false)
-  const [agentResult, setAgentResult] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [historySearch, setHistorySearch] = useState('')
   const [pinnedIds, setPinnedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('essa_studio_pinned_chats') || '[]') } catch { return [] } })
@@ -268,83 +266,6 @@ export default function App() {
     } finally { setBusy(false) }
   }
 
-  async function runAgentWorkspaceTest() {
-    if (agentBusy) return
-    const token = localStorage.getItem('essa_studio_access_token')
-    if (!token) { setNotice('سجّل الدخول إلى Google أولاً.'); return }
-    setAgentBusy(true); setAgentResult('جارٍ إنشاء مساحة عمل...')
-    try {
-      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-      const workspaceResponse = await fetch(`${API_BASE_URL}/api/v1/agent/workspaces`, {
-        method: 'POST', headers, body: JSON.stringify({ name: 'EssaStudio Agent Test' })
-      })
-      const workspaceData = await workspaceResponse.json().catch(() => ({}))
-      if (!workspaceResponse.ok) throw new Error(workspaceData.detail || 'تعذر إنشاء مساحة العمل.')
-      localStorage.setItem('essa_studio_agent_workspace', workspaceData.workspace_id)
-      setAgentResult('تم إنشاء مساحة العمل. جارٍ تجهيز مشروع Remotion...')
-      const scaffoldResponse = await fetch(`${API_BASE_URL}/api/v1/agent/workspaces/${workspaceData.workspace_id}/scaffold/remotion`, {
-        method: 'POST', headers, body: JSON.stringify({
-          project_name: 'EssaStudioIntro', composition_id: 'EssaStudioIntro',
-          title: 'EssaStudio AI', duration_seconds: 7, width: 1920, height: 1080, fps: 30
-        })
-      })
-      const scaffoldData = await scaffoldResponse.json().catch(() => ({}))
-      if (!scaffoldResponse.ok) throw new Error(scaffoldData.detail || 'تعذر إنشاء مشروع Remotion.')
-      setAgentResult('تم إنشاء المشروع. جارٍ فحص الملفات وإمكانات بيئة التشغيل...')
-      const preflightResponse = await fetch(`${API_BASE_URL}/api/v1/agent/workspaces/${workspaceData.workspace_id}/remotion/preflight`, {
-        method: 'POST', headers
-      })
-      const preflight = await preflightResponse.json().catch(() => ({}))
-      if (!preflightResponse.ok) throw new Error(preflight.detail || 'تعذر فحص مشروع Remotion.')
-      const runtime = preflight.runtime || {}
-      const missing = ['node', 'npm', 'ffmpeg'].filter(tool => !runtime[tool])
-      const runtimeText = preflight.can_render_here
-        ? 'بيئة التشغيل تحتوي Node وnpm وFFmpeg.'
-        : 'أدوات الرندر غير مكتملة على خادم API' + (missing.length ? ': ' + missing.join('، ') : '') + '. سنحتاج Worker منفصل.'
-      setAgentResult(`نجح فحص المشروع: ${preflight.checks_passed}/${preflight.checks_total} اختبار. الملفات: ${scaffoldData.files?.length || 0}. ${runtimeText} مساحة العمل: ${workspaceData.workspace_id}`)
-      setNotice('تم إنشاء مشروع Remotion وفحص ملفاته. لم يتم تشغيل الرندر بعد.')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'حدث خطأ أثناء اختبار المحرك.'
-      setAgentResult(message); setNotice(message)
-    } finally { setAgentBusy(false) }
-  }
-
-
-  async function runPersistentStorageTest() {
-    if (agentBusy) return
-    const token = localStorage.getItem('essa_studio_access_token')
-    if (!token) { setNotice('سجّل الدخول إلى Google أولاً.'); return }
-    setAgentBusy(true); setAgentResult('جارٍ اختبار الحفظ الدائم على قاعدة البيانات...')
-    try {
-      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
-      const base = `${API_BASE_URL}/api/v1/storage`
-      const createResponse = await fetch(`${base}/workspaces`, {
-        method: 'POST', headers, body: JSON.stringify({ name: 'EssaStudio Storage Test' })
-      })
-      const created = await createResponse.json().catch(() => ({}))
-      if (!createResponse.ok) throw new Error(created.detail || 'تعذر إنشاء مساحة الحفظ.')
-      const workspaceId = created.workspace_id
-      const testContent = `EssaStudio AI persistent storage test\\nCreated: ${new Date().toISOString()}\\n`
-      const saveResponse = await fetch(`${base}/workspaces/${workspaceId}/files`, {
-        method: 'PUT', headers, body: JSON.stringify({ path: 'storage-test.txt', content: testContent })
-      })
-      const saved = await saveResponse.json().catch(() => ({}))
-      if (!saveResponse.ok) throw new Error(saved.detail || 'تعذر حفظ الملف.')
-      const readResponse = await fetch(`${base}/workspaces/${workspaceId}/files/storage-test.txt`, { headers })
-      const read = await readResponse.json().catch(() => ({}))
-      if (!readResponse.ok) throw new Error(read.detail || 'تعذر قراءة الملف بعد الحفظ.')
-      if (read.content !== testContent) throw new Error('تمت القراءة لكن المحتوى لا يطابق الملف المحفوظ.')
-      const listResponse = await fetch(`${base}/workspaces/${workspaceId}/files`, { headers })
-      const listed = await listResponse.json().catch(() => ({}))
-      if (!listResponse.ok) throw new Error(listed.detail || 'تعذر عرض ملفات المشروع.')
-      setAgentResult(`نجح اختبار قاعدة البيانات: إنشاء مشروع، حفظ ملف، قراءته ومطابقة محتواه، وعرض الملفات. عدد الملفات: ${listed.files?.length || 0}. معرّف المشروع: ${workspaceId}`)
-      setNotice('الحفظ الدائم يعمل في قاعدة البيانات. لم يتم اختبار الرندر في هذه الخطوة.')
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'حدث خطأ أثناء اختبار الحفظ الدائم.'
-      setAgentResult(message); setNotice(message)
-    } finally { setAgentBusy(false) }
-  }
-
   function openProject(item: VideoProject) { setProject(item); setNotice(''); setSidebarOpen(false) }
   function newChat() { setProject(null); setMessages([]); setAssets([]); setDraft(''); setFiles([]); setNotice(''); setSidebarOpen(false) }
   function togglePin(id: string) {
@@ -377,13 +298,12 @@ export default function App() {
   function toggleTheme() {
     setTheme(current => { const next = current === 'dark' ? 'light' : 'dark'; localStorage.setItem('essa_studio_theme', next); return next })
   }
-  const diagnosticsMode = new URLSearchParams(window.location.search).get('diagnostics') === '1'
   const visibleProjects = [...projects]
     .sort((a, b) => Number(pinnedIds.includes(b.id)) - Number(pinnedIds.includes(a.id)) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     .filter(item => item.name.toLocaleLowerCase('ar').includes(historySearch.trim().toLocaleLowerCase('ar')))
 
   return <main className={`chat-app ${theme === 'light' ? 'theme-light' : 'theme-dark'}`} dir="rtl">
-    <Suspense fallback={<div className="chat-notice">بحمّل الاستوديو…</div>}><Studio apiBaseUrl={API_BASE_URL} onOpenAssistant={() => setAssistantOpen(true)} onSink={handleSink} /></Suspense>
+    <Suspense fallback={<div className="chat-notice">بحمّل الاستوديو…</div>}><Studio apiBaseUrl={API_BASE_URL} account={authUser ? { name: authUser.display_name || authUser.email, initial: (authUser.display_name || authUser.email).trim().charAt(0).toUpperCase(), avatar: authUser.avatar_url } : null} onLogin={startGoogleLogin} onLogout={() => void logout()} theme={theme} onToggleTheme={toggleTheme} onOpenAssistant={() => setAssistantOpen(true)} onSink={handleSink} /></Suspense>
     <div className={`assistant-layer ${assistantOpen ? 'open' : ''}`} onClick={() => setAssistantOpen(false)}>
     <div className="assistant-sheet" onClick={event => event.stopPropagation()} role="dialog" aria-label="المساعد">
     <header className="assistant-head">
@@ -466,15 +386,6 @@ export default function App() {
       <aside className={`chat-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
         <div className="sidebar-heading"><b>مساحة العمل</b><button onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة">×</button></div>
         <button className="sidebar-new-chat" onClick={newChat}>＋ محادثة جديدة</button>
-        {diagnosticsMode && <>
-        <button className="agent-test-button" onClick={() => void runPersistentStorageTest()} disabled={agentBusy || !authUser}>
-          {agentBusy ? 'جارٍ اختبار الحفظ...' : '💾 اختبار الحفظ الدائم'}
-        </button>
-        <button className="agent-test-button" onClick={() => void runAgentWorkspaceTest()} disabled={agentBusy || !authUser}>
-          {agentBusy ? 'جارٍ اختبار المحرك...' : '⚙ اختبار محرك الإنتاج'}
-        </button>
-        {agentResult && <div className="agent-test-result" role="status">{agentResult}</div>}
-        </>}
         <label className="history-search">
           <span>⌕</span>
           <input value={historySearch} onChange={event => setHistorySearch(event.target.value)} placeholder="ابحث في المحادثات" />
@@ -495,18 +406,6 @@ export default function App() {
               </span>}
             </span>
           </div>) : <p className="history-empty">{historySearch ? 'لا توجد محادثات مطابقة.' : 'محادثاتك الجديدة هتظهر هنا.'}</p>}
-        </div>
-        <div className="sidebar-bottom">
-          <button className="sidebar-theme-setting" onClick={toggleTheme}><span className="sidebar-theme-icon">{theme === 'dark' ? '☀' : '☾'}</span><span>المظهر</span><b>{theme === 'dark' ? 'داكن' : 'فاتح'}</b></button>
-          {authUser ? <>
-            <div className="sidebar-profile">
-              {authUser.avatar_url
-                ? <img className="sidebar-profile-avatar" src={authUser.avatar_url} alt="" referrerPolicy="no-referrer" />
-                : <span className="sidebar-profile-avatar sidebar-profile-fallback">{(authUser.display_name || authUser.email).trim().charAt(0).toUpperCase()}</span>}
-              <span className="sidebar-account">{authUser.display_name || authUser.email}</span>
-            </div>
-            <button className="sidebar-logout" onClick={() => void logout()}>تسجيل الخروج</button>
-          </> : <button onClick={startGoogleLogin}>تسجيل الدخول باستخدام Google</button>}
         </div>
       </aside>
       {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="إغلاق القائمة" />}

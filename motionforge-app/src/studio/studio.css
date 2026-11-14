@@ -1,27 +1,68 @@
-.studio { flex: 1 1 auto; min-height: 0; width: 100%; max-width: 640px; box-sizing: border-box; margin: 0 auto; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 14px 14px 80px; display: flex; flex-direction: column; gap: 12px; text-align: right; }
-.studio-head { position: sticky; top: -14px; z-index: 5; margin: -14px -14px 0; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 17px; background: #212121; color: #ececec; border-bottom: 1px solid rgba(127,127,127,.25); }
-.studio-head b { flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.studio-head button { padding: 8px 12px; font-size: 15px; }
-.studio-input { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; }
-.studio-project { flex-direction: row; align-items: center; }
-.studio .studio-project-open { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; border: 0; padding: 4px; text-align: right; }
-.studio-card { border: 1px solid rgba(127,127,127,.3); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: rgba(127,127,127,.07); }
+/* EssaStudio studio: dark, gold accent, one flat surface colour per level. */
+.studio { --gold:#E8B64C; --surface:#212329; --line:rgba(255,255,255,.08); --muted:#9aa0ab; position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column; background: #17181c; color: #f2f2f2; text-align: right; font-family: inherit; }
+.studio-head { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: #17181c; }
+.studio-head-title { flex: 1; display: flex; flex-direction: column; line-height: 1.3; min-width: 0; }
+.studio-head-title b { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-head-title small { font-size: 12px; color: var(--muted); }
+.studio-brand { display: flex; align-items: center; gap: 10px; flex: 1; }
+.studio-logo { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: linear-gradient(135deg,#E8B64C,#c98a1e); color: #17181c; font-weight: 800; font-size: 20px; }
+.studio .icon-btn { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; flex: none; border-radius: 13px; border: 1px solid var(--line); background: var(--surface); color: #f2f2f2; }
+.studio .icon-btn.gold { color: var(--gold); border-color: rgba(232,182,76,.4); background: rgba(232,182,76,.1); }
+
+.studio-tabs { flex: none; display: flex; gap: 6px; padding: 10px 14px 4px; }
+.studio .studio-tabs button { flex: 1; padding: 10px 0; font-size: 14px; border-radius: 12px; border: 0; background: var(--surface); color: var(--muted); }
+.studio .studio-tabs button.active { background: var(--gold); color: #17181c; font-weight: 800; }
+
+.studio-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; width: 100%; max-width: 640px; box-sizing: border-box; margin: 0 auto; padding: 12px 14px 96px; display: flex; flex-direction: column; gap: 12px; }
+.studio-intro h1 { margin: 6px 0 2px; font-size: 26px; font-weight: 800; color: #f2f2f2; }
+.studio-intro p { margin: 0; font-size: 14px; color: var(--muted); }
+
+.studio-card { border: 1px solid var(--line); border-radius: 18px; padding: 14px; display: flex; flex-direction: column; gap: 8px; background: var(--surface); }
 .studio-card h3 { margin: 0 0 4px; font-size: 17px; }
-.studio label { font-size: 14px; opacity: .85; font-weight: 600; margin-top: 4px; }
-.studio small { font-size: 13px; opacity: .8; line-height: 1.6; }
-.studio textarea, .studio select, .studio input[type=file] { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 10px; border-radius: 10px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; }
+.studio label { font-size: 14px; color: #cfd3da; font-weight: 700; margin-top: 4px; }
+.studio small { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.studio small.ok { color: #5fd49a; }
+.studio textarea, .studio select, .studio input[type=file], .studio-input { width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: #1a1b20; color: inherit; }
 .studio textarea.mono { font-family: ui-monospace, Consolas, monospace; font-size: 13px; direction: ltr; text-align: left; }
-.studio button, .studio-download { font: inherit; font-size: 16px; font-weight: 700; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(127,127,127,.4); background: transparent; color: inherit; cursor: pointer; text-align: center; text-decoration: none; }
+.studio button, .studio-download { font: inherit; font-size: 16px; font-weight: 700; min-height: 46px; padding: 0 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.14); background: transparent; color: inherit; cursor: pointer; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .studio button.primary { background: #217346; border-color: #217346; color: #fff; }
 .studio button:disabled { opacity: .5; }
 .studio-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .studio-actions button { flex: 1; }
-.studio-issues { margin: 0; padding: 0 18px 0 0; color: #e5484d; font-size: 13px; line-height: 1.7; }
-.studio-player { direction: ltr; width: 100%; max-height: 70vh; margin: 0 auto; background: #000; border-radius: 10px; overflow: hidden; }
+.studio-row { display: flex; gap: 10px; }
+.studio-row > div { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+
+.studio .studio-new { display: flex; align-items: center; justify-content: flex-start; gap: 14px; padding: 16px; min-height: 68px; width: 100%; box-sizing: border-box; border-radius: 18px; border: 1.5px dashed rgba(232,182,76,.55); background: rgba(232,182,76,.07); color: var(--gold); text-align: right; }
+.studio-new span { display: flex; flex-direction: column; line-height: 1.35; }
+.studio-new b { font-size: 16px; } .studio-new small { color: #c9b27a; }
+.studio .studio-new-plus { width: 40px; height: 40px; border-radius: 12px; background: var(--gold); color: #17181c; align-items: center; justify-content: center; flex: none; }
+.studio-kinds { display: flex; gap: 8px; flex-wrap: wrap; }
+.studio .studio-kinds button { flex: 1; min-height: 42px; font-size: 14px; padding: 0 10px; }
+.studio .studio-kinds button.active.kind-excel { background: rgba(46,155,99,.22); border-color: #2e9b63; color: #5fd49a; }
+.studio .studio-kinds button.active.kind-bein { background: rgba(232,182,76,.18); border-color: var(--gold); color: var(--gold); }
+.studio .studio-kinds button.active.kind-historima { background: rgba(201,138,30,.22); border-color: #c98a1e; color: #e4b768; }
+
+.studio-project { display: flex; align-items: center; gap: 8px; padding: 10px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.studio .studio-project-open { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-start; gap: 14px; border: 0; padding: 0; min-height: 96px; text-align: right; }
+.studio-thumb { width: 76px; height: 96px; border-radius: 12px; flex: none; display: block; overflow: hidden; }
+.thumb-xl { background: linear-gradient(160deg,#1f6b44,#145030) repeating-linear-gradient(0deg, rgba(255,255,255,.2) 0 1px, transparent 1px 10px); box-shadow: inset 0 -10px 0 -4px #E8B64C; }
+.thumb-bs { background: linear-gradient(180deg,#14213d,#0b1226); }
+.thumb-hs { background: linear-gradient(180deg,#8a6a45,#3d2b1a); border: 1.5px solid var(--gold); box-sizing: border-box; }
+.studio-project-info { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.studio-project-info b { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.kind-chip { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
+.kind-chip.kind-excel { background: rgba(46,155,99,.18); color: #5fd49a; }
+.kind-chip.kind-bein { background: rgba(232,182,76,.16); color: var(--gold); }
+.kind-chip.kind-historima { background: rgba(201,138,30,.2); color: #e4b768; }
+
+.studio-player { direction: ltr; width: 100%; max-height: 66vh; margin: 0 auto; background: #000; border-radius: 14px; overflow: hidden; }
 .studio-progress { height: 10px; background: rgba(127,127,127,.25); border-radius: 99px; overflow: hidden; }
 .studio-progress i { display: block; height: 100%; background: #217346; transition: width .2s; }
 .studio-result { display: flex; flex-direction: column; gap: 8px; }
-.studio-result video { width: 100%; max-height: 70vh; border-radius: 10px; background: #000; }
-.studio-message { display: flex; align-items: flex-start; gap: 10px; justify-content: space-between; position: sticky; bottom: 10px; padding: 12px 14px; border-radius: 12px; background: #1f2937; color: #fff; font-size: 14px; line-height: 1.6; }
+.studio-result video { width: 100%; max-height: 66vh; border-radius: 14px; background: #000; }
+.studio-issues { margin: 0; padding-right: 18px; color: #f0a35e; font-size: 13px; line-height: 1.7; }
+.studio-message { position: absolute; left: 14px; right: 14px; bottom: 96px; display: flex; align-items: flex-start; gap: 10px; justify-content: space-between; padding: 12px 14px; border-radius: 14px; background: #2b2e36; border: 1px solid rgba(255,255,255,.12); color: #fff; font-size: 14px; line-height: 1.6; z-index: 3; }
+.studio .studio-message button { flex: none; min-height: 0; padding: 0 8px; border: 0; background: transparent; color: #fff; font-size: 22px; line-height: 1; }
+.studio-bottom { position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 14px 18px; display: flex; flex-direction: column; gap: 8px; text-align: center; background: #1c1d22; border-top: 1px solid var(--line); z-index: 2; }
+.studio .studio-bottom button { min-height: 52px; width: 100%; font-size: 16px; }
 
-.studio .studio-message button { flex: none; padding: 0 8px; border: 0; background: transparent; color: #fff; font-size: 22px; line-height: 1; }

@@ -4,9 +4,9 @@ import {ExcelSheet, sheetHeight, sheetWidth} from '../components/ExcelSheet';
 import {KeyCaps} from '../components/KeyCaps';
 import {LogoCapsule} from '../components/LogoCapsule';
 import {resolveSrc} from '../lib/assets';
-import {FONT, brand} from '../lib/theme';
+import {FONT, alpha, brand} from '../lib/theme';
 import {excelStateAt} from './excelState';
-import type {ExcelScene, ImageScene, LogoScene, TextScene} from './spec';
+import type {ExcelScene, ImageScene, Look, LogoScene, TextScene} from './spec';
 
 const BG = 'linear-gradient(180deg, #e8efe9 0%, #cfd9d2 100%)';
 
@@ -82,47 +82,69 @@ const THEMES = {
   green: {bg: `linear-gradient(160deg, ${brand.green} 0%, ${brand.greenDark} 100%)`, title: '#ffffff', sub: '#d1fae5'},
 };
 
-export const TextSceneView: React.FC<{scene: TextScene}> = ({scene}) => {
+const TitleWithAccent: React.FC<{title: string; highlight?: string; accent: string}> = ({title, highlight, accent}) => {
+  const at = highlight ? title.indexOf(highlight) : -1;
+  if (!highlight || at < 0) return <>{title}</>;
+  return (
+    <>
+      {title.slice(0, at)}
+      <span style={{color: accent}}>{highlight}</span>
+      {title.slice(at + highlight.length)}
+    </>
+  );
+};
+
+export const TextSceneView: React.FC<{scene: TextScene; look?: Look}> = ({scene, look}) => {
   const frame = useCurrentFrame();
   const {fps, width, height} = useVideoConfig();
-  const theme = THEMES[scene.theme ?? 'light'];
+  const theme = look
+    ? {bg: `radial-gradient(circle at 50% 38%, ${alpha(look.accent, 0.16)} 0%, ${look.bg} 62%)`, title: look.text, sub: alpha(look.text, 0.78)}
+    : THEMES[scene.theme ?? 'light'];
   const a = spring({frame, fps, config: {damping: 16, stiffness: 100}});
   const b = spring({frame: frame - Math.round(0.25 * fps), fps, config: {damping: 16, stiffness: 100}});
+  const bar = spring({frame: frame - Math.round(0.15 * fps), fps, config: {damping: 18, stiffness: 90}});
+  const drift = interpolate(frame, [0, fps * 6], [1, 1.05], {extrapolateRight: 'clamp'});
+  const base = Math.min(width, height * 1.2);
   return (
     <AbsoluteFill style={{background: theme.bg, alignItems: 'center', justifyContent: 'center', padding: width * 0.08}}>
-      <div
-        dir="rtl"
-        style={{
-          fontFamily: FONT,
-          fontWeight: 800,
-          fontSize: Math.min(width, height * 1.2) * 0.085,
-          lineHeight: 1.35,
-          textAlign: 'center',
-          color: theme.title,
-          opacity: a,
-          transform: `translateY(${(1 - a) * 50}px)`,
-        }}
-      >
-        {scene.title}
-      </div>
-      {scene.subtitle && (
+      <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `scale(${drift})`}}>
         <div
           dir="rtl"
           style={{
-            marginTop: height * 0.025,
             fontFamily: FONT,
-            fontWeight: 600,
-            fontSize: Math.min(width, height * 1.2) * 0.048,
-            lineHeight: 1.5,
+            fontWeight: 800,
+            fontSize: base * (look ? 0.118 : 0.085),
+            lineHeight: 1.3,
             textAlign: 'center',
-            color: theme.sub,
-            opacity: b,
-            transform: `translateY(${(1 - b) * 30}px)`,
+            color: theme.title,
+            opacity: a,
+            transform: `translateY(${(1 - a) * 50}px)`,
           }}
         >
-          {scene.subtitle}
+          <TitleWithAccent title={scene.title} highlight={scene.highlight} accent={look?.accent ?? '#f5b301'} />
         </div>
-      )}
+        {look && (
+          <div style={{marginTop: height * 0.02, height: base * 0.012, width: width * 0.22 * bar, borderRadius: 99, background: look.accent}} />
+        )}
+        {scene.subtitle && (
+          <div
+            dir="rtl"
+            style={{
+              marginTop: height * 0.025,
+              fontFamily: FONT,
+              fontWeight: 600,
+              fontSize: base * (look ? 0.058 : 0.048),
+              lineHeight: 1.5,
+              textAlign: 'center',
+              color: theme.sub,
+              opacity: b,
+              transform: `translateY(${(1 - b) * 30}px)`,
+            }}
+          >
+            {scene.subtitle}
+          </div>
+        )}
+      </div>
     </AbsoluteFill>
   );
 };
@@ -167,6 +189,6 @@ export const ImageSceneView: React.FC<{scene: ImageScene; durationFrames: number
   );
 };
 
-export const LogoSceneView: React.FC<{scene: LogoScene; logo?: string}> = ({scene, logo}) => (
-  <LogoCapsule logo={logo} handle={scene.handle} label={scene.label} />
+export const LogoSceneView: React.FC<{scene: LogoScene; logo?: string; look?: Look}> = ({scene, logo, look}) => (
+  <LogoCapsule logo={logo} handle={scene.handle ?? look?.handle} label={scene.label ?? look?.label} look={look} />
 );

@@ -1,17 +1,23 @@
 import React from 'react';
 import {Img, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {resolveSrc} from '../lib/assets';
-import {brand, FONT} from '../lib/theme';
+import {alpha, brand, FONT} from '../lib/theme';
+import type {Look} from '../engine/spec';
 
 type Props = {
   /** File inside reels/public. Without it a simple "E" badge is drawn. */
   logo?: string;
   handle?: string;
   label?: string;
+  /** Page identity. When given, nothing of the classic EssaXcel look is used. */
+  look?: Look;
 };
 
 /** Closing screen: logo, then a small "follow the page" capsule underneath. */
-export const LogoCapsule: React.FC<Props> = ({logo, handle = '@EssaXcel', label = 'تابع الصفحة'}) => {
+export const LogoCapsule: React.FC<Props> = ({logo, handle: handleProp, label: labelProp, look}) => {
+  const handle = look ? handleProp : (handleProp ?? '@EssaXcel');
+  const label = labelProp ?? 'تابع الصفحة';
+  const letter = (handle ?? '').replace(/^@/, '').charAt(0).toUpperCase();
   const frame = useCurrentFrame();
   const {fps, width} = useVideoConfig();
   const logoIn = spring({frame, fps, config: {damping: 15, stiffness: 90}});
@@ -27,7 +33,7 @@ export const LogoCapsule: React.FC<Props> = ({logo, handle = '@EssaXcel', label 
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'radial-gradient(circle at 50% 50%, #1b3a2a 0%, #0f172a 70%)',
+        background: look ? `radial-gradient(circle at 50% 45%, ${alpha(look.accent, 0.22)} 0%, ${look.bg} 70%)` : 'radial-gradient(circle at 50% 50%, #1b3a2a 0%, #0f172a 70%)',
         gap: width * 0.05,
         opacity: interpolate(frame, [0, 8], [0, 1], {extrapolateRight: 'clamp'}),
       }}
@@ -35,14 +41,14 @@ export const LogoCapsule: React.FC<Props> = ({logo, handle = '@EssaXcel', label 
       <div style={{transform: `scale(${interpolate(logoIn, [0, 1], [0.7, 1])})`, opacity: logoIn}}>
         {logo ? (
           <Img src={resolveSrc(logo)} style={{width: logoSize, height: logoSize, objectFit: 'contain'}} />
-        ) : (
+        ) : look && !letter ? null : (
           <div
             style={{
               width: logoSize * 0.6,
               height: logoSize * 0.6,
               borderRadius: logoSize * 0.14,
-              background: brand.green,
-              color: '#fff',
+              background: look ? look.accent : brand.green,
+              color: look ? look.bg : '#fff',
               fontFamily: FONT,
               fontWeight: 800,
               fontSize: logoSize * 0.38,
@@ -51,11 +57,11 @@ export const LogoCapsule: React.FC<Props> = ({logo, handle = '@EssaXcel', label 
               justifyContent: 'center',
             }}
           >
-            E
+            {look ? letter : 'E'}
           </div>
         )}
       </div>
-      <div
+      {handle && <div
         dir="rtl"
         style={{
           display: 'flex',
@@ -68,14 +74,14 @@ export const LogoCapsule: React.FC<Props> = ({logo, handle = '@EssaXcel', label 
           fontFamily: FONT,
           fontWeight: 600,
           fontSize: width * 0.036,
-          color: '#fff',
+          color: look?.text ?? '#fff',
           opacity: capsuleIn,
           transform: `translateY(${interpolate(capsuleIn, [0, 1], [18, 0])}px)`,
         }}
       >
         <span>{label}</span>
-        <span style={{color: '#7ddba0', fontWeight: 800, direction: 'ltr'}}>{handle}</span>
-      </div>
+        <span style={{color: look?.accent ?? '#7ddba0', fontWeight: 800, direction: 'ltr'}}>{handle}</span>
+      </div>}
     </div>
   );
 };

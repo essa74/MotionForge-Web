@@ -84,7 +84,7 @@ export function validateSpec(input: unknown): {spec: ReelSpec | null; errors: st
       }
       case 'text':
         if (!str(s.title)) return errors.push(`${label}: العنوان مطلوب.`);
-        scenes.push({type: 'text', duration, caption, title: str(s.title), subtitle: s.subtitle ? str(s.subtitle) : undefined, theme: ['light', 'dark', 'green'].includes(str(s.theme)) ? (s.theme as 'light') : undefined});
+        scenes.push({type: 'text', duration, caption, title: str(s.title), highlight: s.highlight ? str(s.highlight) : undefined, subtitle: s.subtitle ? str(s.subtitle) : undefined, theme: ['light', 'dark', 'green'].includes(str(s.theme)) ? (s.theme as 'light') : undefined});
         break;
       case 'image':
         if (!str(s.src)) return errors.push(`${label}: اسم الصورة (src) مطلوب.`);

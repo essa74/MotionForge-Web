@@ -3,6 +3,7 @@ import {AbsoluteFill, Sequence, useVideoConfig} from 'remotion';
 import {Captions} from '../components/Captions';
 import {VoiceOver} from '../components/VoiceOver';
 import type {ReelProps} from '../lib/types';
+import {DrawSceneView} from './draw';
 import {ExcelSceneView, ImageSceneView, LogoSceneView, TextSceneView} from './scenes';
 import {specSeconds, type Look, type ReelSpec, type Scene} from './spec';
 
@@ -19,6 +20,8 @@ const SceneView: React.FC<{scene: Scene; logo?: string; look?: Look; frames: num
       return <TextSceneView scene={scene} look={look} />;
     case 'image':
       return <ImageSceneView scene={scene} durationFrames={frames} />;
+    case 'draw':
+      return <DrawSceneView scene={scene} look={look ?? {bg: '#0b0b10', text: '#ffffff', accent: '#E8B64C'}} k={k} />;
     case 'logo':
       return <LogoSceneView scene={scene} logo={logo} look={look} />;
   }

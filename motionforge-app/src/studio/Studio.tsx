@@ -17,7 +17,7 @@ export default function Studio({ onOpenAi, account, onLogin, onLogout, theme, on
   const [name, setName] = useState('')
   const [templates, setTemplates] = useState<Template[]>(loadTemplates)
   const [templateId, setTemplateId] = useState('free')
-  const [editing, setEditing] = useState<{ id?: string; name: string; color: string; note: string; bg?: string; handle?: string; excel?: boolean } | null>(null)
+  const [editing, setEditing] = useState<{ id?: string; name: string; color: string; note: string; bg?: string; handle?: string; excel?: boolean; draw?: boolean } | null>(null)
   const open = projects.find(project => project.id === openId)
 
   const refresh = () => setProjects(loadProjects())
@@ -62,10 +62,10 @@ export default function Studio({ onOpenAi, account, onLogin, onLogout, theme, on
             <label>القالب</label>
             <div className="studio-kinds">
               {[FREE_TEMPLATE, ...templates].map(item => <button key={item.id} className={templateId === item.id ? 'active' : ''} style={templateId === item.id ? { borderColor: item.color, color: item.color, background: item.color + '24' } : undefined} onClick={() => setTemplateId(item.id)}>{item.name}</button>)}
-              <button onClick={() => setEditing({ name: '', color: '#E8B64C', note: '', bg: TEMPLATE_BGS[0], handle: '', excel: false })}>＋ قالب جديد</button>
+              <button onClick={() => setEditing({ name: '', color: '#E8B64C', note: '', bg: TEMPLATE_BGS[0], handle: '', excel: false, draw: false })}>＋ قالب جديد</button>
             </div>
             {templateId !== 'free' && !editing && <div className="studio-actions">
-              <button onClick={() => { const item = templateById(templateId); setEditing({ id: item.id, name: item.name, color: item.color, note: item.note, bg: item.bg, handle: item.handle, excel: item.excel }) }}>تعديل القالب</button>
+              <button onClick={() => { const item = templateById(templateId); setEditing({ id: item.id, name: item.name, color: item.color, note: item.note, bg: item.bg, handle: item.handle, excel: item.excel, draw: item.draw }) }}>تعديل القالب</button>
               <button className="danger" onClick={() => { if (window.confirm('حذف القالب؟ المشاريع اللي عليه هتفضل موجودة.')) { deleteTemplate(templateId); setTemplates(loadTemplates()); setTemplateId('free') } }}>حذف القالب</button>
             </div>}
             {editing && <div className="studio-template-form">
@@ -76,6 +76,7 @@ export default function Studio({ onOpenAi, account, onLogin, onLogout, theme, on
               <div className="studio-swatches">{TEMPLATE_BGS.map(bg => <button key={bg} aria-label={`خلفية ${bg}`} aria-pressed={editing.bg === bg} className={editing.bg === bg ? 'active' : ''} style={{ background: bg, border: '1px solid #888' }} onClick={() => setEditing({ ...editing, bg })} />)}</div>
               <input className="studio-input" dir="ltr" value={editing.handle || ''} onChange={event => setEditing({ ...editing, handle: event.target.value })} placeholder="@handle الصفحة (يظهر في آخر الفيديو)" />
               <label className="studio-check"><input type="checkbox" checked={!!editing.excel} onChange={event => setEditing({ ...editing, excel: event.target.checked })} /> يسمح بمشاهد Excel (جداول). سيبها فاضية لو صفحتك مش عن Excel</label>
+              <label className="studio-check"><input type="checkbox" checked={!!editing.draw} onChange={event => setEditing({ ...editing, draw: event.target.checked })} /> مشاهد رسم (شخصيات عود وأشياء مرسومة). لصفحات زي بين السطور</label>
               <textarea value={editing.note} onChange={event => setEditing({ ...editing, note: event.target.value })} rows={4} placeholder="وصف الستايل لجيمناي (اختياري). مثلاً: خلفية سودا، شخصية عود كبريت بيضاء، كلمة مهمة بالدهبي في كل جملة" />
               <div className="studio-actions">
                 <button className="primary" onClick={() => { const saved = saveTemplate(editing); setTemplates(loadTemplates()); setTemplateId(saved.id); setEditing(null) }}>حفظ القالب</button>

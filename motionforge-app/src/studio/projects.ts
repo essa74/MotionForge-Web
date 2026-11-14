@@ -1,7 +1,7 @@
 import type { Format } from '../reels-engine/lib/theme'
 
 // A template is a personal look the user defines (name, colour, style note for Gemini). Nothing is built in except the free project.
-export type Template = { id: string; name: string; color: string; note: string; bg?: string; handle?: string; excel?: boolean }
+export type Template = { id: string; name: string; color: string; note: string; bg?: string; handle?: string; excel?: boolean; draw?: boolean }
 export const FREE_TEMPLATE: Template = { id: 'free', name: 'فيديو حر', color: '#E8B64C', note: '', bg: '#0b0b10', handle: '' }
 export const TEMPLATE_BGS = ['#0b0b10', '#0b1330', '#111827', '#0f2a1d', '#ffffff']
 export const TEMPLATE_COLORS = ['#E8B64C', '#2e9b63', '#4f8cff', '#e0627a', '#a76bff', '#e08a3c']
@@ -10,8 +10,8 @@ const TEMPLATES = 'essa_studio_templates'
 export function loadTemplates(): Template[] {
   try { return JSON.parse(localStorage.getItem(TEMPLATES) || '[]') as Template[] } catch { return [] }
 }
-export function saveTemplate(input: { id?: string; name: string; color: string; note: string; bg?: string; handle?: string; excel?: boolean }): Template {
-  const template: Template = { id: input.id || crypto.randomUUID(), name: input.name.trim() || 'قالب جديد', color: input.color, note: input.note.trim(), bg: input.bg || TEMPLATE_BGS[0], handle: (input.handle || '').trim(), excel: !!input.excel }
+export function saveTemplate(input: { id?: string; name: string; color: string; note: string; bg?: string; handle?: string; excel?: boolean; draw?: boolean }): Template {
+  const template: Template = { id: input.id || crypto.randomUUID(), name: input.name.trim() || 'قالب جديد', color: input.color, note: input.note.trim(), bg: input.bg || TEMPLATE_BGS[0], handle: (input.handle || '').trim(), excel: !!input.excel, draw: !!input.draw }
   const rest = loadTemplates().filter(item => item.id !== template.id)
   try { localStorage.setItem(TEMPLATES, JSON.stringify([...rest, template])) } catch { /* storage full or blocked */ }
   return template
@@ -71,3 +71,6 @@ export function deleteProject(id: string) { write(loadProjects().filter(project 
 export function allowsExcel(template: Template, script: string): boolean {
   return template.id === 'free' ? /excel|إكسل|اكسل|إكسيل|اكسيل/i.test(script) : !!template.excel
 }
+
+/** Drawn stick-figure scenes: a template opts in. */
+export function allowsDraw(template: Template): boolean { return !!template.draw }

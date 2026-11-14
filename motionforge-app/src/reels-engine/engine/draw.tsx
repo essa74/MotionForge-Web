@@ -1,6 +1,8 @@
 import React from 'react';
 import {AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig} from 'remotion';
 import {mix} from '../lib/theme';
+import {FONT} from '../lib/theme';
+import {TitleWithAccent} from './scenes';
 import type {DrawItem, DrawScene, Look} from './spec';
 
 const W = 100; // stage width in units; height follows the frame
@@ -48,7 +50,7 @@ const Item: React.FC<{item: DrawItem; look: Look; t: number; p: number; H: numbe
     return (
       <g {...common} transform={`translate(${item.x} ${-30})`}>
         <rect x={-w / 2} y={-3.4} width={w} height={6.8} rx={1.6} fill={look.bg} stroke={look.accent} strokeWidth={0.4} />
-        <text x={0} y={1.2} textAnchor="middle" fontSize={3.2} fill={ink} fontFamily="CairoLat, CairoAr, sans-serif" fontWeight={700}>{item.text}</text>
+        <text x={0} y={1.2} textAnchor="middle" fontSize={3.2} fill={ink} fontFamily={FONT} direction="rtl" style={{unicodeBidi: 'plaintext'}} fontWeight={700}>{item.text}</text>
       </g>
     );
   }
@@ -79,7 +81,35 @@ const Item: React.FC<{item: DrawItem; look: Look; t: number; p: number; H: numbe
     return (
       <g {...common} transform={`translate(${item.x} 0)`} fill="none" stroke={ink} strokeWidth={LINE}>
         <rect x={-3.4} y={-12} width={6.8} height={12} rx={1.2} />
-        {item.text && <text x={0} y={-5.6} textAnchor="middle" fontSize={2.2} fill={look.accent} stroke="none" fontFamily="CairoLat, CairoAr, sans-serif" fontWeight={700}>{item.text}</text>}
+        {item.text && <text x={0} y={-5.6} textAnchor="middle" fontSize={2.2} fill={look.accent} stroke="none" fontFamily={FONT} direction="rtl" style={{unicodeBidi: 'plaintext'}} fontWeight={700}>{item.text}</text>}
+      </g>
+    );
+  }
+  if (k === 'cloud') {
+    return (
+      <g {...common} transform={`translate(${item.x} ${item.y ?? -28})`} fill={look.bg} stroke={item.color ?? '#4f8cff'} strokeWidth={0.45} strokeLinejoin="round">
+        <path d="M -7 2 Q -10 2 -10 -1 Q -10 -4 -7 -4 Q -6.5 -8 -2 -7.5 Q 1 -10 4 -7 Q 9 -7.5 9 -3 Q 11 -1 9 2 Z" />
+        {item.text && <text x={0} y={-1} textAnchor="middle" fontSize={2.8} fill={ink} stroke="none" fontFamily={FONT} direction="rtl" style={{unicodeBidi: 'plaintext'}} fontWeight={700}>{item.text}</text>}
+      </g>
+    );
+  }
+  if (k === 'magnifier') {
+    return (
+      <g {...common} transform={`translate(${item.x} -22)`} fill="none" stroke={look.accent} strokeWidth={0.6} strokeLinecap="round">
+        <circle r={2.8} />
+        <path d="M 2 2 L 5 5" />
+      </g>
+    );
+  }
+  if (k === 'heart') {
+    const beat = 1 + Math.sin(t * 6) * 0.06;
+    return <path {...common} transform={`translate(${item.x} -26) scale(${beat})`} d="M 0 3 C -6 -1 -4 -5 0 -2 C 4 -5 6 -1 0 3 Z" fill={item.color ?? '#e5484d'} stroke="none" />;
+  }
+  if (k === 'dots') {
+    return (
+      <g {...common} transform={`translate(${item.x} -30)`}>
+        <rect x={-4.4} y={-2.4} width={8.8} height={4.8} rx={1.4} fill={look.bg} stroke={look.accent} strokeWidth={0.4} />
+        {[-1.8, 0, 1.8].map((dx, i) => <circle key={i} cx={dx} cy={0} r={0.4 + 0.15 * Math.sin(t * 6 + i)} fill={ink} />)}
       </g>
     );
   }
@@ -96,7 +126,6 @@ export const DrawSceneView: React.FC<{scene: DrawScene; look: Look; k?: number}>
     <AbsoluteFill style={{background: look.bg}}>
       <svg width={width} height={height} viewBox={`0 0 ${W} ${H}`} style={{position: 'absolute', inset: 0}}>
         <g transform={`translate(0 ${ground})`}>
-          {scene.items.some((i) => i.kind === 'spotlight') ? null : null}
           {scene.items.map((item, i) => {
             const at = (item.at ?? 0) * k;
             const p = interpolate(t, [at, at + 0.4], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
@@ -105,6 +134,11 @@ export const DrawSceneView: React.FC<{scene: DrawScene; look: Look; k?: number}>
           {scene.ground !== false && <line x1={3} y1={0} x2={97} y2={0} stroke={look.text} strokeWidth={LINE} strokeLinecap="round" />}
         </g>
       </svg>
+      {scene.title && (
+        <div dir="rtl" style={{position: 'absolute', left: 0, right: 0, top: `${(ground / H) * 100 + 9}%`, padding: `0 ${width * 0.07}px`, textAlign: 'center', fontFamily: FONT, fontWeight: 800, fontSize: Math.min(width, height * 1.2) * 0.07, lineHeight: 1.4, color: look.text, opacity: interpolate(t, [0.1, 0.5], [0, 1], {extrapolateRight: 'clamp'})}}>
+          <TitleWithAccent title={scene.title} highlight={scene.highlight} accent={look.accent} />
+        </div>
+      )}
     </AbsoluteFill>
   );
 };

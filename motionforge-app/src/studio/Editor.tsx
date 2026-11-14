@@ -8,7 +8,7 @@ import { FORMATS, type Format } from '../reels-engine/lib/theme'
 import { loadReelFonts } from './fonts'
 import { askAi, loadAi } from '../ai'
 import { buildScenePrompt, extractJson } from './scenePrompt'
-import { DEFAULT_SPEC_TEXT, allowsExcel, lookOf, saveProject, templateById, type Project } from './projects'
+import { DEFAULT_SPEC_TEXT, allowsDraw, allowsExcel, lookOf, saveProject, templateById, type Project } from './projects'
 import { ChatIcon, ICON } from './ui'
 import './studio.css'
 
@@ -108,14 +108,14 @@ export default function Editor({ project, onOpenAi, onBack, onOpenAssistant, onS
     setAsking(true); setMessage(''); setAskSeconds(0)
     const started = Date.now()
     const tick = window.setInterval(() => setAskSeconds(Math.floor((Date.now() - started) / 1000)), 1000)
-    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note, allowExcel: allowsExcel(template, script) })
+    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note, allowExcel: allowsExcel(template, script), allowDraw: allowsDraw(template) })
     const controller = new AbortController(); askAbort.current = controller
     const timer = window.setTimeout(() => controller.abort(), 120000)
     try {
       const reply = await askAi(ai, [{ role: 'user', content: prompt }], { signal: controller.signal })
       const checked = validateSpec(extractJson(reply))
       // Safety net: a model that ignores the rule still cannot put a table into a non-Excel reel.
-      if (checked.spec && !allowsExcel(template, script)) checked.spec.scenes = checked.spec.scenes.map(sc => sc.type === 'excel' ? { type: 'text' as const, duration: sc.duration, title: (typeof sc.caption === 'string' ? sc.caption : sc.caption?.[0]?.text) || 'تابع معانا' } : sc)
+      if (checked.spec) checked.spec.scenes = checked.spec.scenes.map(sc => (sc.type === 'excel' && !allowsExcel(template, script)) || (sc.type === 'draw' && !allowsDraw(template)) ? { type: 'text' as const, duration: sc.duration, title: (sc.type === 'draw' && sc.title) || (typeof sc.caption === 'string' ? sc.caption : sc.caption?.[0]?.text) || 'تابع معانا' } : sc)
       if (!checked.spec) throw new Error(checked.errors.join(' | '))
       setSpecText(JSON.stringify(checked.spec, null, 2)); setResult(null); setTab('scenes')
       setMessage(checked.errors.length ? 'جهزت المشاهد مع تنبيهات: ' + checked.errors.join(' | ') : 'المشاهد جاهزة. راجعها وعاين.')
@@ -130,7 +130,7 @@ export default function Editor({ project, onOpenAi, onBack, onOpenAssistant, onS
   function cancelGemini() { const current = askAbort.current; askAbort.current = null; current?.abort() }
 
   async function copyPrompt() {
-    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note, allowExcel: allowsExcel(template, script) })
+    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note, allowExcel: allowsExcel(template, script), allowDraw: allowsDraw(template) })
     try { await navigator.clipboard.writeText(prompt); setMessage('اتنسخت التعليمات. الصقها في جيمناي وارجع الصق الـ JSON تحت.') } catch { setMessage('تعذر النسخ.') }
   }
 

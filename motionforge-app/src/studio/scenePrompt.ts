@@ -1,6 +1,6 @@
 /** The instruction sent to Gemini so that it answers with a scene list the engine can play. */
-export function buildScenePrompt(args: { script: string; voiceSeconds: number | null; imageNames: string[]; format: string; styleNote?: string; allowExcel: boolean }) {
-  const { script, voiceSeconds, imageNames, format, styleNote, allowExcel } = args
+export function buildScenePrompt(args: { script: string; voiceSeconds: number | null; imageNames: string[]; format: string; styleNote?: string; allowExcel: boolean; allowDraw?: boolean }) {
+  const { script, voiceSeconds, imageNames, format, styleNote, allowExcel, allowDraw } = args
   const style = styleNote ? `\n\nتعليمات إلزامية من صاحب الصفحة (أهم من أي شيء تحت): ${styleNote}` : ''
   const length = voiceSeconds
     ? `طول الصوت ${voiceSeconds.toFixed(1)} ثانية. اجعل مجموع duration لكل المشاهد قبل مشهد اللوجو الأخير قريب من ${Math.max(1, voiceSeconds - 0).toFixed(0)} ثانية.`
@@ -20,7 +20,22 @@ ${allowExcel ? `- {"type":"excel","duration":9,"columns":[70,260,250,170],"rows"
    - {"at":5,"do":"type","cell":"D7","text":"=SUM(D2:D6)","result":"39,500","over":1.5}  كتابة (والنتيجة تظهر في الخلية)
    - {"at":7,"do":"format","range":"C7:D7","fill":"#fff4c2","bold":true}  تلوين أو Bold
 ` : ''}
-- {"type":"image","duration":5,"src":"اسم ملف الصورة","motion":"zoom-in|zoom-out|pan-left|pan-right","title":"اختياري"}
+${allowDraw ? `- {"type":"draw","duration":4,"title":"الجملة كاملة","highlight":"أهم كلمة فيها","items":[ ... ]}  مشهد رسم بشخصيات عود. هو الاختيار الأول لكل جملة تقريباً.
+   مكان كل عنصر x من 0 (يسار) إلى 100 (يمين)، و at اختياري = ثانية ظهوره داخل المشهد. العناصر المتاحة فقط:
+   {"kind":"person","x":50,"mood":"neutral|sad|happy","pose":"stand|wave","hair":false,"size":1}  شخصية (hair:true لشخصية بنت، size:0.6 لشخص صغير في زحمة)
+   {"kind":"spotlight","x":50}  بقعة ضوء (لشخص وحيد أو مميز)
+   {"kind":"wave","from":30,"to":70,"color":"#4f8cff"}  موجة صوت/كلام بين شخصين
+   {"kind":"bubble","x":75,"text":"كلمتين"}  فقاعة كلام بنص قصير
+   {"kind":"dots","x":50}  فقاعة تفكير بنقط
+   {"kind":"cloud","x":50,"y":-28,"text":"كلمة","color":"#4f8cff"}  سحابة مشاعر أو فكرة بكلمة
+   {"kind":"moon","x":88}  ليل (قمر ونجوم)
+   {"kind":"house","x":70}  بيت
+   {"kind":"clock","x":60}  ساعة
+   {"kind":"phone","x":60,"text":"كلمة"}  موبايل
+   {"kind":"magnifier","x":50}  عدسة (ملاحظة/بحث)
+   {"kind":"heart","x":50}  قلب
+   لا تستخدم أي kind غير دول. من 2 إلى 6 عناصر في المشهد، وبلا تداخل (شخصان على الأقل بينهم 30 وحدة).
+` : ''}- {"type":"image","duration":5,"src":"اسم ملف الصورة","motion":"zoom-in|zoom-out|pan-left|pan-right","title":"اختياري"}
    استخدم فقط أسماء الصور المتاحة${imageNames.length ? ': ' + imageNames.join(', ') : ' (لا توجد صور مرفوعة، فلا تستخدم هذا النوع)'}.
 - {"type":"logo","duration":3}  آخر مشهد دائماً. لا تكتب فيه اسم صفحة ولا handle ولا لوجو: يتضاف تلقائياً.
 
@@ -31,7 +46,7 @@ ${allowExcel ? `- {"type":"excel","duration":9,"columns":[70,260,250,170],"rows"
 - ابدأ بمشهد text يجذب الانتباه، وانهِ بمشهد logo.
 - كل caption جملة قصيرة بالمصري (3 إلى 7 كلمات)، وتتزامن مع الكلام.
 ${allowExcel ? '- مشاهد Excel تعرض الشرح خطوة بخطوة بنفس ترتيب كلام السكريبت. بيانات الجدول واقعية (أسماء موظفين، أقسام، مبالغ).' : '- ممنوع تماماً استخدام مشاهد جداول أو Excel. استخدم المشاهد المذكورة أعلاه فقط.'}
-- لو مفيش مشهد يناسب الجملة، استخدم مشهد text. لا تخترع أنواع مشاهد جديدة.
+${allowDraw ? '- كل جملة من السكريبت = مشهد draw واحد: الجملة في title وأهم كلمة في highlight، والعناصر ترسم معناها.\n' : ''}- لو مفيش مشهد يناسب الجملة، استخدم مشهد text. لا تخترع أنواع مشاهد جديدة.
 - ${length}
 
 السكريبت:

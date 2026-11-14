@@ -65,8 +65,12 @@ export type DrawItem = {at?: number} & (
   | {kind: 'house'; x: number}
   | {kind: 'clock'; x: number}
   | {kind: 'phone'; x: number; text?: string}
+  | {kind: 'cloud'; x: number; y?: number; text?: string; color?: string}
+  | {kind: 'magnifier'; x: number}
+  | {kind: 'heart'; x: number; color?: string}
+  | {kind: 'dots'; x: number}
 );
-export type DrawScene = SceneBase & {type: 'draw'; items: DrawItem[]; ground?: boolean};
+export type DrawScene = SceneBase & {type: 'draw'; items: DrawItem[]; ground?: boolean; title?: string; highlight?: string};
 
 export type Scene = ExcelScene | TextScene | ImageScene | LogoScene | DrawScene;
 

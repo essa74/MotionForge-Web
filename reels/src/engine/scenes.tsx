@@ -82,7 +82,7 @@ const THEMES = {
   green: {bg: `linear-gradient(160deg, ${brand.green} 0%, ${brand.greenDark} 100%)`, title: '#ffffff', sub: '#d1fae5'},
 };
 
-const TitleWithAccent: React.FC<{title: string; highlight?: string; accent: string}> = ({title, highlight, accent}) => {
+export const TitleWithAccent: React.FC<{title: string; highlight?: string; accent: string}> = ({title, highlight, accent}) => {
   const at = highlight ? title.indexOf(highlight) : -1;
   if (!highlight || at < 0) return <>{title}</>;
   return (

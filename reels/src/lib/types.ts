@@ -1,3 +1,5 @@
+import type {ReelSpec} from '../engine/spec';
+
 /** A subtitle line. `from` and `to` are in seconds on the voice-over timeline. */
 export type CaptionLine = {text: string; from: number; to: number};
 
@@ -9,4 +11,6 @@ export type ReelProps = {
   logo?: string;
   /** Overrides the reel's default format. */
   format?: 'vertical' | 'horizontal' | 'square';
+  /** Scene list for the SceneReel composition. */
+  spec?: ReelSpec;
 };

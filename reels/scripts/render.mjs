@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Usage: npm run render -- <CompositionId> [--voice voice.mp3] [--logo logo.png]
+// Usage: npm run render -- <CompositionId> [--voice voice.mp3] [--logo logo.png] [--spec scenes.json]
 //          [--format vertical|horizontal|square] [--out out/name.mp4] [--frames 0-59]
 // Files named by --voice / --logo must be inside reels/public.
 import {spawnSync} from 'node:child_process';
-import {existsSync, mkdirSync, rmSync} from 'node:fs';
+import {existsSync, mkdirSync, readFileSync, rmSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -26,11 +26,15 @@ function fail(message) {
 
 const {positional, flags} = parseArgs(process.argv.slice(2));
 const id = positional[0];
-if (!id) fail('Usage: npm run render -- <CompositionId> [--voice file] [--logo file] [--format f] [--out path]');
+if (!id) fail('Usage: npm run render -- <CompositionId> [--voice file] [--logo file] [--format f] [--spec scenes.json] [--out path]');
 
 const props = {};
 if (flags.voice) props.voiceOver = flags.voice;
 if (flags.logo) props.logo = flags.logo;
+if (flags.spec) {
+  if (!existsSync(flags.spec)) fail(`${flags.spec} not found`);
+  props.spec = JSON.parse(readFileSync(flags.spec, 'utf8'));
+}
 if (flags.format) {
   if (!['vertical', 'horizontal', 'square'].includes(flags.format)) fail('--format must be vertical, horizontal or square');
   props.format = flags.format;

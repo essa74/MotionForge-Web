@@ -1,6 +1,9 @@
-import type React from 'react';
+import React from 'react';
 import type {Format} from './lib/theme';
 import type {ReelProps} from './lib/types';
+import {demoSpec} from './engine/demoSpec';
+import {SceneReel} from './engine/Reel';
+import {specSeconds} from './engine/spec';
 import {TemplateDemo} from './reels/TemplateDemo';
 
 export type ReelDef = {
@@ -18,5 +21,6 @@ export type ReelDef = {
 
 /** Add one entry per reel. */
 export const reels: ReelDef[] = [
+  {id: 'SceneReel', component: (props) => <SceneReel {...props} spec={props.spec ?? demoSpec} />, format: 'vertical', fps: 30, seconds: specSeconds(demoSpec), tailSeconds: 0},
   {id: 'TemplateDemo', component: TemplateDemo, format: 'vertical', fps: 30, seconds: 9, tailSeconds: 2},
 ];

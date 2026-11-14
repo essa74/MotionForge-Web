@@ -1,11 +1,11 @@
-import ar400 from '../../../reels/public/fonts/cairo-arabic-400.woff2?inline'
-import ar600 from '../../../reels/public/fonts/cairo-arabic-600.woff2?inline'
-import ar700 from '../../../reels/public/fonts/cairo-arabic-700.woff2?inline'
-import ar800 from '../../../reels/public/fonts/cairo-arabic-800.woff2?inline'
-import la400 from '../../../reels/public/fonts/cairo-latin-400.woff2?inline'
-import la600 from '../../../reels/public/fonts/cairo-latin-600.woff2?inline'
-import la700 from '../../../reels/public/fonts/cairo-latin-700.woff2?inline'
-import la800 from '../../../reels/public/fonts/cairo-latin-800.woff2?inline'
+import ar400 from './fonts/cairo-arabic-400.woff2?inline'
+import ar600 from './fonts/cairo-arabic-600.woff2?inline'
+import ar700 from './fonts/cairo-arabic-700.woff2?inline'
+import ar800 from './fonts/cairo-arabic-800.woff2?inline'
+import la400 from './fonts/cairo-latin-400.woff2?inline'
+import la600 from './fonts/cairo-latin-600.woff2?inline'
+import la700 from './fonts/cairo-latin-700.woff2?inline'
+import la800 from './fonts/cairo-latin-800.woff2?inline'
 
 const toBuffer = (dataUri: string): ArrayBuffer => {
   const bin = atob(dataUri.slice(dataUri.indexOf(',') + 1))

@@ -4,12 +4,12 @@ export type AiSettings = { provider: Provider; key: string; model: string; baseU
 export type AiMessage = { role: 'user' | 'assistant'; content: string }
 export type AiImage = { mime_type: string; data: string }
 
-export const PROVIDERS: Record<Provider, { label: string; model: string; hint: string; link?: string }> = {
-  gemini: { label: 'Google Gemini (مجاني)', model: 'gemini-3.5-flash-lite', hint: 'مفتاح مجاني من Google AI Studio', link: 'https://aistudio.google.com/apikey' },
-  openai: { label: 'OpenAI', model: 'gpt-5-mini', hint: 'مفتاح من platform.openai.com', link: 'https://platform.openai.com/api-keys' },
-  claude: { label: 'Claude (Anthropic)', model: 'claude-haiku-5-5', hint: 'مفتاح من console.anthropic.com', link: 'https://console.anthropic.com/settings/keys' },
-  openrouter: { label: 'OpenRouter', model: 'google/gemini-2.5-flash', hint: 'مفتاح واحد لموديلات كتير', link: 'https://openrouter.ai/keys' },
-  custom: { label: 'مزوّد آخر (متوافق مع OpenAI)', model: '', hint: 'اكتب عنوان الـ API واسم الموديل' },
+export const PROVIDERS: Record<Provider, { label: string; model: string; hint: string; link?: string; steps: string[] }> = {
+  gemini: { label: 'Google Gemini (مجاني)', model: 'gemini-3.5-flash-lite', hint: 'مفتاح مجاني من Google AI Studio', link: 'https://aistudio.google.com/apikey', steps: ['افتح الرابط وسجّل دخول بحساب Google.', 'اضغط «Create API key».', 'اختار مشروع موجود أو «Create API key in new project».', 'انسخ المفتاح والصقه هنا، واضغط «جرّب المفتاح» ثم «حفظ».', 'مجاني، وليه حد يومي للاستخدام.'] },
+  openai: { label: 'OpenAI', model: 'gpt-5-mini', hint: 'مفتاح من platform.openai.com', link: 'https://platform.openai.com/api-keys', steps: ['افتح الرابط وسجّل دخول.', 'اضغط «Create new secret key» وسمّيه.', 'انسخ المفتاح فوراً (مش هيظهر تاني).', 'الصقه هنا واضغط «جرّب المفتاح» ثم «حفظ».', 'مدفوع: لازم تشحن رصيد في حسابك الأول.'] },
+  claude: { label: 'Claude (Anthropic)', model: 'claude-haiku-5-5', hint: 'مفتاح من console.anthropic.com', link: 'https://console.anthropic.com/settings/keys', steps: ['افتح الرابط وسجّل دخول.', 'اضغط «Create Key» وسمّيه.', 'انسخ المفتاح فوراً (مش هيظهر تاني).', 'الصقه هنا واضغط «جرّب المفتاح» ثم «حفظ».', 'مدفوع: لازم تضيف رصيد (Credits) في حسابك.'] },
+  openrouter: { label: 'OpenRouter', model: 'google/gemini-2.5-flash', hint: 'مفتاح واحد لموديلات كتير', link: 'https://openrouter.ai/keys', steps: ['افتح الرابط وسجّل دخول.', 'اضغط «Create Key» وسمّيه.', 'انسخ المفتاح والصقه هنا.', 'اكتب اسم الموديل اللي عايزه (مثلاً google/gemini-2.5-flash).', 'فيه موديلات مجانية وموديلات مدفوعة حسب الاختيار.'] },
+  custom: { label: 'مزوّد آخر (متوافق مع OpenAI)', model: '', hint: 'اكتب عنوان الـ API واسم الموديل', steps: ['هات من المزوّد: مفتاح الـ API وعنوان الـ API (ينتهي غالباً بـ /v1) واسم الموديل.', 'اكتبهم في الخانات تحت، واضغط «جرّب المفتاح».', 'لازم المزوّد يدعم صيغة OpenAI ويسمح بالاتصال من المتصفح.'] },
 }
 
 const STORE = 'essa_studio_ai'

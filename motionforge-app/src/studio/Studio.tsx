@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { FREE_TEMPLATE, TEMPLATE_COLORS, createProject, deleteProject, deleteTemplate, loadProjects, loadTemplates, saveTemplate, templateById, type Project, type Template } from './projects'
 import { ChatIcon, ICON } from './ui'
+import { useBack } from './back'
 import './studio.css'
 
 // The editor carries the video engine (Remotion), so it loads only when a project is opened.
@@ -8,7 +9,7 @@ const Editor = lazy(() => import('./Editor'))
 
 type Account = { name: string; initial: string; avatar?: string | null } | null
 
-export default function Studio({ apiBaseUrl, account, onLogin, onLogout, theme, onToggleTheme, onOpenAssistant, onSink }: { apiBaseUrl: string; account: Account; onLogin: () => void; onLogout: () => void; theme: 'dark' | 'light'; onToggleTheme: () => void; onOpenAssistant: () => void; onSink: (sink: ((text: string) => void) | null) => void }) {
+export default function Studio({ onOpenAi, account, onLogin, onLogout, theme, onToggleTheme, onOpenAssistant, onSink }: { onOpenAi: () => void; account: Account; onLogin: () => void; onLogout: () => void; theme: 'dark' | 'light'; onToggleTheme: () => void; onOpenAssistant: () => void; onSink: (sink: ((text: string) => void) | null) => void }) {
   const [accountOpen, setAccountOpen] = useState(false)
   const [projects, setProjects] = useState<Project[]>(loadProjects)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -20,8 +21,11 @@ export default function Studio({ apiBaseUrl, account, onLogin, onLogout, theme, 
   const open = projects.find(project => project.id === openId)
 
   const refresh = () => setProjects(loadProjects())
+  useBack(!!open, () => { setOpenId(null); refresh() })
+  useBack(accountOpen, () => setAccountOpen(false))
+  useBack(creating, () => setCreating(false))
 
-  if (open) return <Suspense fallback={<section className="studio"><div className="studio-body"><small>بحمّل محرر الفيديو…</small></div></section>}><Editor key={open.id} project={open} apiBaseUrl={apiBaseUrl} onOpenAssistant={onOpenAssistant} onSink={onSink} onBack={() => { refresh(); setOpenId(null) }} /></Suspense>
+  if (open) return <Suspense fallback={<section className="studio"><div className="studio-body"><small>بحمّل محرر الفيديو…</small></div></section>}><Editor key={open.id} project={open} onOpenAi={onOpenAi} onOpenAssistant={onOpenAssistant} onSink={onSink} onBack={() => { refresh(); setOpenId(null) }} /></Suspense>
 
   return <section className="studio" dir="rtl">
     <div className="studio-head">
@@ -40,7 +44,8 @@ export default function Studio({ apiBaseUrl, account, onLogin, onLogout, theme, 
         <h3>حسابي</h3>
         {account
           ? <div className="studio-account"><span className="studio-account-avatar">{account.avatar ? <img src={account.avatar} alt="" referrerPolicy="no-referrer" /> : account.initial}</span><b>{account.name}</b></div>
-          : <button className="primary" onClick={onLogin}>سجّل الدخول بـ Google</button>}
+          : <button onClick={onLogin}>سجّل الدخول بـ Google (اختياري)</button>}
+        <button onClick={() => { setAccountOpen(false); onOpenAi() }}>🔑 مفتاح الذكاء الاصطناعي</button>
         <button onClick={onToggleTheme}>المظهر: {theme === 'dark' ? 'داكن ☾ (اضغط للفاتح)' : 'فاتح ☀ (اضغط للداكن)'}</button>
         {account && <button className="danger" onClick={() => { setAccountOpen(false); onLogout() }}>تسجيل الخروج</button>}
         <button onClick={() => setAccountOpen(false)}>إغلاق</button>

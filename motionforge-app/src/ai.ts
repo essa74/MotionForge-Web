@@ -1,0 +1,67 @@
+// Bring-your-own-key AI layer: every user brings their own key; calls go straight from the browser.
+export type Provider = 'gemini' | 'openai' | 'claude' | 'openrouter' | 'custom'
+export type AiSettings = { provider: Provider; key: string; model: string; baseUrl: string }
+export type AiMessage = { role: 'user' | 'assistant'; content: string }
+export type AiImage = { mime_type: string; data: string }
+
+export const PROVIDERS: Record<Provider, { label: string; model: string; hint: string; link?: string }> = {
+  gemini: { label: 'Google Gemini (مجاني)', model: 'gemini-3.5-flash-lite', hint: 'مفتاح مجاني من Google AI Studio', link: 'https://aistudio.google.com/apikey' },
+  openai: { label: 'OpenAI', model: 'gpt-5-mini', hint: 'مفتاح من platform.openai.com', link: 'https://platform.openai.com/api-keys' },
+  claude: { label: 'Claude (Anthropic)', model: 'claude-haiku-5-5', hint: 'مفتاح من console.anthropic.com', link: 'https://console.anthropic.com/settings/keys' },
+  openrouter: { label: 'OpenRouter', model: 'google/gemini-2.5-flash', hint: 'مفتاح واحد لموديلات كتير', link: 'https://openrouter.ai/keys' },
+  custom: { label: 'مزوّد آخر (متوافق مع OpenAI)', model: '', hint: 'اكتب عنوان الـ API واسم الموديل' },
+}
+
+const STORE = 'essa_studio_ai'
+export function loadAi(): AiSettings | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(STORE) || 'null')
+    return v && v.key ? { provider: v.provider || 'gemini', key: v.key, model: v.model || '', baseUrl: v.baseUrl || '' } : null
+  } catch { return null }
+}
+export function saveAi(s: AiSettings) { localStorage.setItem(STORE, JSON.stringify(s)) }
+export function clearAi() { localStorage.removeItem(STORE) }
+
+function httpError(status: number, body: unknown): Error {
+  const detail = (body as { error?: { message?: string } })?.error?.message
+  if (status === 401 || status === 403) return new Error('المفتاح مرفوض. تأكد إنه صحيح وفعّال.')
+  if (status === 429) return new Error('وصلت للحد المسموح لمفتاحك حالياً. استنى شوية وجرّب تاني.')
+  return new Error(detail ? `خطأ من المزوّد: ${detail}` : `تعذر الحصول على رد (${status}).`)
+}
+
+export async function askAi(s: AiSettings, messages: AiMessage[], opts: { signal?: AbortSignal; images?: AiImage[] } = {}): Promise<string> {
+  const model = s.model.trim() || PROVIDERS[s.provider].model
+  const images = opts.images || []
+  const last = messages.length - 1
+  let url: string, headers: Record<string, string> = { 'Content-Type': 'application/json' }, body: unknown
+  if (s.provider === 'gemini') {
+    url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`
+    headers['x-goog-api-key'] = s.key
+    body = { contents: messages.map((m, i) => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }, ...(i === last ? images.map(im => ({ inline_data: { mime_type: im.mime_type, data: im.data } })) : [])] })) }
+  } else if (s.provider === 'claude') {
+    url = 'https://api.anthropic.com/v1/messages'
+    headers = { ...headers, 'x-api-key': s.key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' }
+    body = { model, max_tokens: 8000, messages: messages.map((m, i) => ({ role: m.role, content: i === last && images.length ? [...images.map(im => ({ type: 'image', source: { type: 'base64', media_type: im.mime_type, data: im.data } })), { type: 'text', text: m.content }] : m.content })) }
+  } else {
+    const base = s.provider === 'openai' ? 'https://api.openai.com/v1' : s.provider === 'openrouter' ? 'https://openrouter.ai/api/v1' : s.baseUrl.trim().replace(/\/+$/, '')
+    if (!base) throw new Error('اكتب عنوان الـ API للمزوّد.')
+    if (!model) throw new Error('اكتب اسم الموديل.')
+    url = `${base}/chat/completions`
+    headers.Authorization = `Bearer ${s.key}`
+    body = { model, messages: messages.map((m, i) => ({ role: m.role, content: i === last && images.length ? [{ type: 'text', text: m.content }, ...images.map(im => ({ type: 'image_url', image_url: { url: `data:${im.mime_type};base64,${im.data}` } }))] : m.content })) }
+  }
+  let res: Response
+  try { res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: opts.signal }) }
+  catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') throw e
+    throw new Error('تعذر الاتصال بالمزوّد. تأكد من الإنترنت (وبعض المزوّدين لا يسمحون بالاتصال من المتصفح).')
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw httpError(res.status, data)
+  const d = data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>; content?: Array<{ text?: string }>; choices?: Array<{ message?: { content?: string } }> }
+  const text = s.provider === 'gemini' ? d.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('')
+    : s.provider === 'claude' ? d.content?.map(p => p.text || '').join('')
+    : d.choices?.[0]?.message?.content
+  if (!text) throw new Error('المزوّد رد برد فاضي. جرّب تاني.')
+  return text
+}

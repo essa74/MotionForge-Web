@@ -6,6 +6,7 @@ import { specSeconds, type ReelSpec } from '../reels-engine/engine/spec'
 import { validateSpec } from '../reels-engine/engine/validate'
 import { FORMATS, type Format } from '../reels-engine/lib/theme'
 import { loadReelFonts } from './fonts'
+import { askAi, loadAi } from '../ai'
 import { buildScenePrompt, extractJson } from './scenePrompt'
 import { DEFAULT_SPEC_TEXT, saveProject, templateById, type Project } from './projects'
 import { ChatIcon, ICON } from './ui'
@@ -32,7 +33,7 @@ type Tab = 'inputs' | 'scenes' | 'preview'
 const TABS: Array<[Tab, string]> = [['inputs', '١ المدخلات'], ['scenes', '٢ المشاهد'], ['preview', '٣ المعاينة']]
 
 
-export default function Editor({ project, apiBaseUrl, onBack, onOpenAssistant, onSink }: { project: Project; apiBaseUrl: string; onBack: () => void; onOpenAssistant: () => void; onSink: (sink: ((text: string) => void) | null) => void }) {
+export default function Editor({ project, onOpenAi, onBack, onOpenAssistant, onSink }: { project: Project; onOpenAi: () => void; onBack: () => void; onOpenAssistant: () => void; onSink: (sink: ((text: string) => void) | null) => void }) {
   const [tab, setTab] = useState<Tab>('inputs')
   const template = useMemo(() => templateById(project.templateId), [project.templateId])
   const [script, setScript] = useState(project.script)
@@ -44,7 +45,6 @@ export default function Editor({ project, apiBaseUrl, onBack, onOpenAssistant, o
   const [fontsReady, setFontsReady] = useState(false)
   const [asking, setAsking] = useState(false)
   const [askSeconds, setAskSeconds] = useState(0)
-  const [attempt, setAttempt] = useState(1)
   const askAbort = useRef<AbortController | null>(null)
   const [message, setMessage] = useState('')
   const [rendering, setRendering] = useState(false)
@@ -102,44 +102,25 @@ export default function Editor({ project, apiBaseUrl, onBack, onOpenAssistant, o
 
   async function askGemini() {
     if (!script.trim()) return setMessage('الصق السكريبت الأول.')
-    const token = localStorage.getItem('essa_studio_access_token')
-    if (!token) return setMessage('سجّل الدخول الأول من المساعد (أيقونة الشات فوق).')
-    setAsking(true); setMessage(''); setAskSeconds(0); setAttempt(1)
+    const ai = loadAi()
+    if (!ai) { setMessage('محتاج مفتاح الذكاء الاصطناعي الأول.'); onOpenAi(); return }
+    setAsking(true); setMessage(''); setAskSeconds(0)
     const started = Date.now()
     const tick = window.setInterval(() => setAskSeconds(Math.floor((Date.now() - started) / 1000)), 1000)
     const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note })
-    let cancelled = false
+    const controller = new AbortController(); askAbort.current = controller
+    const timer = window.setTimeout(() => controller.abort(), 120000)
     try {
-      // The free server sleeps when idle, so the first try can hang while it wakes up: retry once.
-      for (let attemptNo = 1; attemptNo <= 2; attemptNo++) {
-        setAttempt(attemptNo)
-        const controller = new AbortController(); askAbort.current = controller
-        const timer = window.setTimeout(() => controller.abort(), attemptNo === 1 ? 90000 : 120000)
-        try {
-          const response = await fetch(`${apiBaseUrl}/api/v1/chat/reply`, {
-            method: 'POST', signal: controller.signal,
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ messages: [{ role: 'user', content: prompt }], attachments: [] }),
-          })
-          const data = await response.json().catch(() => ({}))
-          if (!response.ok) throw new Error(data.detail || 'تعذر الحصول على رد من جيمناي.')
-          const checked = validateSpec(extractJson(String(data.reply)))
-          if (!checked.spec) throw new Error(checked.errors.join(' | '))
-          setSpecText(JSON.stringify(checked.spec, null, 2)); setResult(null); setTab('scenes')
-          setMessage(checked.errors.length ? 'جهزت المشاهد مع تنبيهات: ' + checked.errors.join(' | ') : 'المشاهد جاهزة. راجعها وعاين.')
-          return
-        } catch (error) {
-          const aborted = error instanceof DOMException && error.name === 'AbortError'
-          const network = error instanceof TypeError
-          if (askAbort.current !== controller) { cancelled = true; return }
-          if ((aborted || network) && attemptNo === 1) continue
-          setMessage(aborted ? 'جيمناي ما ردش. جرّب تاني بعد دقيقة.' : (error as Error).message)
-          return
-        } finally { window.clearTimeout(timer) }
-      }
+      const reply = await askAi(ai, [{ role: 'user', content: prompt }], { signal: controller.signal })
+      const checked = validateSpec(extractJson(reply))
+      if (!checked.spec) throw new Error(checked.errors.join(' | '))
+      setSpecText(JSON.stringify(checked.spec, null, 2)); setResult(null); setTab('scenes')
+      setMessage(checked.errors.length ? 'جهزت المشاهد مع تنبيهات: ' + checked.errors.join(' | ') : 'المشاهد جاهزة. راجعها وعاين.')
+    } catch (error) {
+      if (askAbort.current !== controller) setMessage('اتلغى.')
+      else setMessage(error instanceof DOMException && error.name === 'AbortError' ? 'الذكاء الاصطناعي ما ردش. جرّب تاني.' : (error as Error).message)
     } finally {
-      window.clearInterval(tick); askAbort.current = null; setAsking(false)
-      if (cancelled) setMessage('اتلغى.')
+      window.clearTimeout(timer); window.clearInterval(tick); askAbort.current = null; setAsking(false)
     }
   }
 
@@ -238,8 +219,8 @@ export default function Editor({ project, apiBaseUrl, onBack, onOpenAssistant, o
     {tab === 'inputs' && <div className="studio-bottom">
       {asking
         ? <button className="primary" onClick={cancelGemini}>إلغاء ({askSeconds} ث)</button>
-        : <button className="primary" onClick={() => void askGemini()}>✦ جهّز المشاهد بجيمناي</button>}
-      <small>{asking ? (attempt === 1 ? 'جيمناي بيجهز… لو السيرفر كان نايم ممكن ياخد لحد دقيقة.' : 'السيرفر كان بيصحى، بحاول تاني…') : 'لو السيرفر كان نايم ممكن ياخد لحد دقيقة'}</small>
+        : <button className="primary" onClick={() => void askGemini()}>✦ جهّز المشاهد بالذكاء الاصطناعي</button>}
+      <small>{asking ? 'الذكاء الاصطناعي بيجهز… ممكن ياخد لحد دقيقة.' : 'بيستخدم مفتاحك الخاص من إعدادات حسابي'}</small>
     </div>}
   </section>
 }

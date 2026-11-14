@@ -7,7 +7,7 @@ import { validateSpec } from '../reels-engine/engine/validate'
 import { FORMATS, type Format } from '../reels-engine/lib/theme'
 import { loadReelFonts } from './fonts'
 import { buildScenePrompt, extractJson } from './scenePrompt'
-import { DEFAULT_SPEC_TEXT, KIND_LABEL, saveProject, type Project } from './projects'
+import { DEFAULT_SPEC_TEXT, saveProject, templateById, type Project } from './projects'
 import { ChatIcon, ICON } from './ui'
 import './studio.css'
 
@@ -34,6 +34,7 @@ const TABS: Array<[Tab, string]> = [['inputs', '١ المدخلات'], ['scenes'
 
 export default function Editor({ project, apiBaseUrl, onBack, onOpenAssistant, onSink }: { project: Project; apiBaseUrl: string; onBack: () => void; onOpenAssistant: () => void; onSink: (sink: ((text: string) => void) | null) => void }) {
   const [tab, setTab] = useState<Tab>('inputs')
+  const template = useMemo(() => templateById(project.templateId), [project.templateId])
   const [script, setScript] = useState(project.script)
   const [format, setFormat] = useState<Format>(project.format)
   const [voice, setVoice] = useState<Voice | null>(null)
@@ -106,7 +107,7 @@ export default function Editor({ project, apiBaseUrl, onBack, onOpenAssistant, o
     setAsking(true); setMessage(''); setAskSeconds(0); setAttempt(1)
     const started = Date.now()
     const tick = window.setInterval(() => setAskSeconds(Math.floor((Date.now() - started) / 1000)), 1000)
-    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format })
+    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note })
     let cancelled = false
     try {
       // The free server sleeps when idle, so the first try can hang while it wakes up: retry once.
@@ -145,7 +146,7 @@ export default function Editor({ project, apiBaseUrl, onBack, onOpenAssistant, o
   function cancelGemini() { const current = askAbort.current; askAbort.current = null; current?.abort() }
 
   async function copyPrompt() {
-    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format })
+    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note })
     try { await navigator.clipboard.writeText(prompt); setMessage('اتنسخت التعليمات. الصقها في جيمناي وارجع الصق الـ JSON تحت.') } catch { setMessage('تعذر النسخ.') }
   }
 
@@ -177,7 +178,7 @@ export default function Editor({ project, apiBaseUrl, onBack, onOpenAssistant, o
   return <section className="studio" dir="rtl">
     <div className="studio-head">
       <button className="icon-btn" onClick={onBack} aria-label="رجوع للمشاريع"><svg width="22" height="22" viewBox="0 0 24 24" {...ICON} strokeWidth={2}><path d="M9 6l6 6-6 6" /></svg></button>
-      <div className="studio-head-title"><b>{project.name}</b><small>{KIND_LABEL[project.kind]} · بيتحفظ تلقائي</small></div>
+      <div className="studio-head-title"><b>{project.name}</b><small>{template.name} · بيتحفظ تلقائي</small></div>
       <button className="icon-btn gold" onClick={onOpenAssistant} aria-label="المساعد"><ChatIcon /></button>
     </div>
 

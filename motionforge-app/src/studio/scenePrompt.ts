@@ -1,10 +1,11 @@
 /** The instruction sent to Gemini so that it answers with a scene list the engine can play. */
-export function buildScenePrompt(args: { script: string; voiceSeconds: number | null; imageNames: string[]; format: string }) {
-  const { script, voiceSeconds, imageNames, format } = args
+export function buildScenePrompt(args: { script: string; voiceSeconds: number | null; imageNames: string[]; format: string; styleNote?: string }) {
+  const { script, voiceSeconds, imageNames, format, styleNote } = args
+  const style = styleNote ? `\n\nستايل الصفحة (التزم به في العناوين والألوان والتعليقات): ${styleNote}` : ''
   const length = voiceSeconds
     ? `طول الصوت ${voiceSeconds.toFixed(1)} ثانية. اجعل مجموع duration لكل المشاهد قبل مشهد اللوجو الأخير قريب من ${Math.max(1, voiceSeconds - 0).toFixed(0)} ثانية.`
     : 'لا يوجد صوت بعد: قدّر المدة من طول السكريبت (حوالي 2.5 كلمة في الثانية).'
-  return `حوّل السكريبت التالي إلى قائمة مشاهد لريل ${format === 'vertical' ? 'طولي 9:16' : format === 'horizontal' ? 'عرضي 16:9' : 'مربع'}، وأجب بـ JSON فقط بدون أي شرح وبدون \`\`\`.
+  return `حوّل السكريبت التالي إلى قائمة مشاهد لريل ${format === 'vertical' ? 'طولي 9:16' : format === 'horizontal' ? 'عرضي 16:9' : 'مربع'}، وأجب بـ JSON فقط بدون أي شرح وبدون \`\`\`.${style}
 
 الشكل المطلوب:
 {"scenes":[ ... ]}

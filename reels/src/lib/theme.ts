@@ -23,9 +23,13 @@ export const FORMATS: Record<Format, {width: number; height: number}> = {
   square: {width: 1080, height: 1080},
 };
 
-export const alpha = (hex: string, a: number) => {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return hex;
-  const n = parseInt(m[1], 16);
-  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+/** Blend two #rrggbb colours (t = share of `top`). Opaque on purpose: the in-browser renderer drops rgba() in places. */
+export const mix = (top: string, base: string, t: number) => {
+  const parse = (h: string) => { const n = parseInt(h.replace('#', '').padEnd(6, '0').slice(0, 6), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const [a, b] = [parse(top), parse(base)];
+  return '#' + a.map((v, i) => Math.round(v * t + b[i] * (1 - t)).toString(16).padStart(2, '0')).join('');
 };
+
+/** Layers of solid circles that fake a soft glow (the in-browser renderer drops CSS gradients). */
+export const glowLayers = (accent: string, bg: string, strength: number, steps = 48) =>
+  Array.from({length: steps}, (_, i) => ({scale: 1 - i / steps, color: mix(accent, bg, strength * ((i + 1) / steps))}));

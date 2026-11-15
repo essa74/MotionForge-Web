@@ -26,7 +26,7 @@ function httpError(status: number, body: unknown): Error {
   const detail = (body as { error?: { message?: string } })?.error?.message
   if (status === 401 || status === 403) return new Error('المفتاح مرفوض. تأكد إنه صحيح وفعّال.')
   if (status === 429) return new Error('وصلت للحد المسموح لمفتاحك حالياً. استنى شوية وجرّب تاني.')
-  return new Error(detail ? `خطأ من المزوّد: ${detail}` : `تعذر الحصول على رد (${status}).`)
+  return new Error(detail ? `خطأ من المزوّد: ${detail.length > 160 ? detail.slice(0, 160) + '…' : detail}` : `تعذر الحصول على رد (${status}).`)
 }
 
 export async function askAi(s: AiSettings, messages: AiMessage[], opts: { signal?: AbortSignal; images?: AiImage[] } = {}): Promise<string> {
@@ -93,10 +93,12 @@ export async function generateImage(s: AiSettings, prompt: string, opts: { signa
   }
   const data = await res.json().catch(() => ({})) as { candidates?: Array<{ content?: { parts?: Array<{ inlineData?: { mimeType?: string; data?: string }; inline_data?: { mime_type?: string; data?: string } }> } }>; data?: Array<{ b64_json?: string }>; error?: { message?: string } }
   if (!res.ok) {
-    const detail = data.error?.message
-    if (res.status === 401 || res.status === 403) throw new Error(`المفتاح مش مسموح له بتوليد الصور${detail ? ': ' + detail : '.'}`)
-    if (res.status === 429) throw new Error(`وصلت للحد المسموح لتوليد الصور على مفتاحك${detail ? ': ' + detail : '.'}`)
-    throw new Error(detail ? `رفض المزوّد توليد الصورة: ${detail}` : `تعذر توليد الصورة (${res.status}).`)
+    const detail = data.error?.message || ''
+    if (/limit:\s*0|free.?tier/i.test(detail)) throw new Error('مفتاحك المجاني مش بيدعم توليد الصور. فعّل الدفع على مشروع المفتاح في Google AI Studio، أو ارفع الصور بنفسك.')
+    if (res.status === 401 || res.status === 403) throw new Error('المفتاح مش مسموح له بتوليد الصور.')
+    if (res.status === 429) throw new Error('وصلت للحد المسموح لتوليد الصور على مفتاحك. استنى شوية وجرّب تاني.')
+    const short = detail.length > 160 ? detail.slice(0, 160) + '…' : detail
+    throw new Error(short ? `رفض المزوّد توليد الصورة: ${short}` : `تعذر توليد الصورة (${res.status}).`)
   }
   if (s.provider === 'gemini') {
     for (const p of data.candidates?.[0]?.content?.parts ?? []) {

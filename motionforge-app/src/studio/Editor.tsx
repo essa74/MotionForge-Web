@@ -6,9 +6,9 @@ import { specSeconds, type ReelSpec } from '../reels-engine/engine/spec'
 import { validateSpec } from '../reels-engine/engine/validate'
 import { FORMATS, type Format } from '../reels-engine/lib/theme'
 import { loadReelFonts } from './fonts'
-import { askAi, loadAi } from '../ai'
+import { askAi, generateImage, loadAi } from '../ai'
 import { buildScenePrompt, extractJson } from './scenePrompt'
-import { DEFAULT_SPEC_TEXT, lookOf, saveProject, templateById, type Project } from './projects'
+import { DEFAULT_SPEC_TEXT, allowsDraw, allowsExcel, lookOf, saveProject, templateById, type Project } from './projects'
 import { ChatIcon, ICON } from './ui'
 import './studio.css'
 
@@ -101,6 +101,24 @@ export default function Editor({ project, onOpenAi, onBack, onOpenAssistant, onS
     setMessage(''); setVoice({ name: file.name, url, seconds })
   }
 
+  const [imgPrompt, setImgPrompt] = useState('')
+  const [imgBusy, setImgBusy] = useState(false)
+  const [imgMsg, setImgMsg] = useState('')
+  async function makeImage() {
+    const text = imgPrompt.trim()
+    if (!text) return setImgMsg('اكتب وصف الصورة الأول.')
+    const ai = loadAi()
+    if (!ai) { setImgMsg('محتاج مفتاح الذكاء الاصطناعي الأول.'); onOpenAi(); return }
+    setImgBusy(true); setImgMsg('')
+    try {
+      const { mime, data } = await generateImage(ai, text, { shape: format })
+      const bytes = Uint8Array.from(atob(data), char => char.charCodeAt(0))
+      const url = URL.createObjectURL(new Blob([bytes], { type: mime }))
+      const name = `صورة-${images.length + 1}-${text.split(/\s+/).slice(0, 3).join('-')}.${mime.includes('jpeg') ? 'jpg' : 'png'}`
+      setImages(current => [...current, { name, url }]); setImgPrompt(''); setImgMsg('اتضافت الصورة. استخدم الاسم ده في المشاهد.')
+    } catch (error) { setImgMsg((error as Error).message) } finally { setImgBusy(false) }
+  }
+
   async function askGemini() {
     if (!script.trim()) return setMessage('الصق السكريبت الأول.')
     const ai = loadAi()
@@ -108,12 +126,14 @@ export default function Editor({ project, onOpenAi, onBack, onOpenAssistant, onS
     setAsking(true); setMessage(''); setAskSeconds(0)
     const started = Date.now()
     const tick = window.setInterval(() => setAskSeconds(Math.floor((Date.now() - started) / 1000)), 1000)
-    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note })
+    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note, allowExcel: allowsExcel(template, script), allowDraw: allowsDraw(template) })
     const controller = new AbortController(); askAbort.current = controller
     const timer = window.setTimeout(() => controller.abort(), 120000)
     try {
       const reply = await askAi(ai, [{ role: 'user', content: prompt }], { signal: controller.signal })
       const checked = validateSpec(extractJson(reply))
+      // Safety net: a model that ignores the rule still cannot put a table into a non-Excel reel.
+      if (checked.spec) checked.spec.scenes = checked.spec.scenes.map(sc => (sc.type === 'excel' && !allowsExcel(template, script)) || (sc.type === 'draw' && !allowsDraw(template)) ? { type: 'text' as const, duration: sc.duration, title: (sc.type === 'draw' && sc.title) || (typeof sc.caption === 'string' ? sc.caption : sc.caption?.[0]?.text) || 'تابع معانا' } : sc)
       if (!checked.spec) throw new Error(checked.errors.join(' | '))
       setSpecText(JSON.stringify(checked.spec, null, 2)); setResult(null); setTab('scenes')
       setMessage(checked.errors.length ? 'جهزت المشاهد مع تنبيهات: ' + checked.errors.join(' | ') : 'المشاهد جاهزة. راجعها وعاين.')
@@ -128,7 +148,7 @@ export default function Editor({ project, onOpenAi, onBack, onOpenAssistant, onS
   function cancelGemini() { const current = askAbort.current; askAbort.current = null; current?.abort() }
 
   async function copyPrompt() {
-    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note })
+    const prompt = buildScenePrompt({ script, voiceSeconds: voice?.seconds ?? null, imageNames: images.map(image => image.name), format, styleNote: template.note, allowExcel: allowsExcel(template, script), allowDraw: allowsDraw(template) })
     try { await navigator.clipboard.writeText(prompt); setMessage('اتنسخت التعليمات. الصقها في جيمناي وارجع الصق الـ JSON تحت.') } catch { setMessage('تعذر النسخ.') }
   }
 
@@ -184,8 +204,12 @@ export default function Editor({ project, onOpenAi, onBack, onOpenAssistant, onS
       <label>اللوجو</label>
       <input type="file" accept="image/*" onChange={event => { const file = event.target.files?.[0]; setLogo(file ? { name: file.name, url: URL.createObjectURL(file) } : null) }} />
       <label>صور المشاهد (اختياري)</label>
-      <input type="file" accept="image/*" multiple onChange={event => setImages([...event.target.files ?? []].map(file => ({ name: file.name, url: URL.createObjectURL(file) })))} />
-      {images.length > 0 && <small>{images.map(image => image.name).join('، ')}</small>}
+      <input type="file" accept="image/*" multiple onChange={event => { const added = [...event.target.files ?? []].map(file => ({ name: file.name, url: URL.createObjectURL(file) })); setImages(current => [...current, ...added]); event.target.value = '' }} />
+      {images.length > 0 && <div className="studio-thumbs">{images.map(image => <figure key={image.name}><img src={image.url} alt="" /><figcaption>{image.name}</figcaption><button type="button" aria-label="شيل الصورة" onClick={() => setImages(current => current.filter(item => item.name !== image.name))}>×</button></figure>)}</div>}
+      <label>ولّد صورة بالذكاء الاصطناعي (اختياري)</label>
+      <textarea rows={2} value={imgPrompt} onChange={event => setImgPrompt(event.target.value)} placeholder="وصف الصورة. مثلاً: برجر لحم مشوي على طاولة خشب، إضاءة دافئة" />
+      <button type="button" disabled={imgBusy} onClick={() => void makeImage()}>{imgBusy ? 'بولّد الصورة…' : '🎨 ولّد صورة'}</button>
+      <small>{imgMsg || 'بيستخدم مفتاحك. بعض المفاتيح المجانية مش بتسمح بتوليد الصور.'}</small>
       <small>الصوت واللوجو والصور بتتختار تاني كل مرة تفتح المشروع.</small>
     </div>}
 

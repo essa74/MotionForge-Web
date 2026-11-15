@@ -1,8 +1,20 @@
 import React from 'react';
 import {Img, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {resolveSrc} from '../lib/assets';
-import {alpha, brand, FONT} from '../lib/theme';
+import {brand, FONT, glowLayers} from '../lib/theme';
 import type {Look} from '../engine/spec';
+
+export const Glow: React.FC<{accent: string; bg: string; y: number; strength: number}> = ({accent, bg, y, strength}) => {
+  const {width, height} = useVideoConfig();
+  const size = Math.max(width, height) * 0.95;
+  return (
+    <div style={{position: 'absolute', inset: 0, overflow: 'hidden'}}>
+      {glowLayers(accent, bg, strength).map((l, i) => (
+        <div key={i} style={{position: 'absolute', left: width / 2 - (size * l.scale) / 2, top: height * y - (size * l.scale) / 2, width: size * l.scale, height: size * l.scale, borderRadius: '50%', background: l.color}} />
+      ))}
+    </div>
+  );
+};
 
 type Props = {
   /** File inside reels/public. Without it a simple "E" badge is drawn. */
@@ -33,11 +45,12 @@ export const LogoCapsule: React.FC<Props> = ({logo, handle: handleProp, label: l
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        background: look ? `radial-gradient(circle at 50% 45%, ${alpha(look.accent, 0.22)} 0%, ${look.bg} 70%)` : 'radial-gradient(circle at 50% 50%, #1b3a2a 0%, #0f172a 70%)',
+        background: look ? look.bg : 'radial-gradient(circle at 50% 50%, #1b3a2a 0%, #0f172a 70%)',
         gap: width * 0.05,
         opacity: interpolate(frame, [0, 8], [0, 1], {extrapolateRight: 'clamp'}),
       }}
     >
+      {look && <Glow accent={look.accent} bg={look.bg} y={0.45} strength={0.22} />}
       <div style={{transform: `scale(${interpolate(logoIn, [0, 1], [0.7, 1])})`, opacity: logoIn}}>
         {logo ? (
           <Img src={resolveSrc(logo)} style={{width: logoSize, height: logoSize, objectFit: 'contain'}} />

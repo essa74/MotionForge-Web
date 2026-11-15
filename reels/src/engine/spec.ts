@@ -55,7 +55,24 @@ export type ImageScene = SceneBase & {
 
 export type LogoScene = SceneBase & {type: 'logo'; handle?: string; label?: string};
 
-export type Scene = ExcelScene | TextScene | ImageScene | LogoScene;
+/** Things a drawn scene can show. x is 0..100 across the frame; `at` is seconds from the start of the scene. */
+export type DrawItem = {at?: number} & (
+  | {kind: 'person'; x: number; mood?: 'neutral' | 'sad' | 'happy'; pose?: 'stand' | 'wave'; hair?: boolean; size?: number}
+  | {kind: 'spotlight'; x: number}
+  | {kind: 'wave'; from: number; to: number; color?: string}
+  | {kind: 'bubble'; x: number; text: string}
+  | {kind: 'moon'; x: number}
+  | {kind: 'house'; x: number}
+  | {kind: 'clock'; x: number}
+  | {kind: 'phone'; x: number; text?: string}
+  | {kind: 'cloud'; x: number; y?: number; text?: string; color?: string}
+  | {kind: 'magnifier'; x: number}
+  | {kind: 'heart'; x: number; color?: string}
+  | {kind: 'dots'; x: number}
+);
+export type DrawScene = SceneBase & {type: 'draw'; items: DrawItem[]; ground?: boolean; title?: string; highlight?: string};
+
+export type Scene = ExcelScene | TextScene | ImageScene | LogoScene | DrawScene;
 
 export type ReelSpec = {
   format?: Format;

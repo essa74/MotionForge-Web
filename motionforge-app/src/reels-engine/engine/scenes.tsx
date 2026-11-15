@@ -2,9 +2,9 @@ import React from 'react';
 import {AbsoluteFill, Easing, Img, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remotion';
 import {ExcelSheet, sheetHeight, sheetWidth} from '../components/ExcelSheet';
 import {KeyCaps} from '../components/KeyCaps';
-import {LogoCapsule} from '../components/LogoCapsule';
+import {Glow, LogoCapsule} from '../components/LogoCapsule';
 import {resolveSrc} from '../lib/assets';
-import {FONT, alpha, brand} from '../lib/theme';
+import {FONT, brand, mix} from '../lib/theme';
 import {excelStateAt} from './excelState';
 import type {ExcelScene, ImageScene, Look, LogoScene, TextScene} from './spec';
 
@@ -82,7 +82,7 @@ const THEMES = {
   green: {bg: `linear-gradient(160deg, ${brand.green} 0%, ${brand.greenDark} 100%)`, title: '#ffffff', sub: '#d1fae5'},
 };
 
-const TitleWithAccent: React.FC<{title: string; highlight?: string; accent: string}> = ({title, highlight, accent}) => {
+export const TitleWithAccent: React.FC<{title: string; highlight?: string; accent: string}> = ({title, highlight, accent}) => {
   const at = highlight ? title.indexOf(highlight) : -1;
   if (!highlight || at < 0) return <>{title}</>;
   return (
@@ -98,7 +98,7 @@ export const TextSceneView: React.FC<{scene: TextScene; look?: Look}> = ({scene,
   const frame = useCurrentFrame();
   const {fps, width, height} = useVideoConfig();
   const theme = look
-    ? {bg: `radial-gradient(circle at 50% 38%, ${alpha(look.accent, 0.16)} 0%, ${look.bg} 62%)`, title: look.text, sub: alpha(look.text, 0.78)}
+    ? {bg: look.bg, title: look.text, sub: mix(look.text, look.bg, 0.78)}
     : THEMES[scene.theme ?? 'light'];
   const a = spring({frame, fps, config: {damping: 16, stiffness: 100}});
   const b = spring({frame: frame - Math.round(0.25 * fps), fps, config: {damping: 16, stiffness: 100}});
@@ -107,6 +107,7 @@ export const TextSceneView: React.FC<{scene: TextScene; look?: Look}> = ({scene,
   const base = Math.min(width, height * 1.2);
   return (
     <AbsoluteFill style={{background: theme.bg, alignItems: 'center', justifyContent: 'center', padding: width * 0.08}}>
+      {look && <Glow accent={look.accent} bg={look.bg} y={0.42} strength={0.16} />}
       <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', transform: `scale(${drift})`}}>
         <div
           dir="rtl"

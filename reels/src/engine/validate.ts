@@ -90,6 +90,9 @@ export function validateSpec(input: unknown): {spec: ReelSpec | null; errors: st
         if (!str(s.src)) return errors.push(`${label}: اسم الصورة (src) مطلوب.`);
         scenes.push({type: 'image', duration, caption, src: str(s.src), title: s.title ? str(s.title) : undefined, motion: ['zoom-in', 'zoom-out', 'pan-left', 'pan-right'].includes(str(s.motion)) ? (s.motion as 'zoom-in') : undefined});
         break;
+      case 'draw':
+        scenes.push({type: 'draw', duration, caption, title: s.title ? str(s.title) : undefined, highlight: s.highlight ? str(s.highlight) : undefined, items: Array.isArray(s.items) ? (s.items.filter((i: {kind?: unknown}) => i && typeof i.kind === 'string') as never) : []});
+        break;
       case 'logo':
         scenes.push({type: 'logo', duration, caption, handle: s.handle ? str(s.handle) : undefined, label: s.label ? str(s.label) : undefined});
         break;
